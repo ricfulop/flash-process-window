@@ -487,12 +487,12 @@ export default function ProcessWindowV5() {
                   <div key={k}>
                     <span style={{ color: m.color, fontWeight: 700 }}>{k}</span>
                     {": "}<b>{ef.toFixed(2)}</b>{" V/cm "}
-                    <span style={{ color: "#94a3b8", fontSize: "0.46rem" }}>{"(voltility \u03BB=" + m.lam + ")"}</span>
+                    <span style={{ color: "#94a3b8", fontSize: "0.46rem" }}>{"(voltivity \u03BB=" + m.lam + ")"}</span>
                   </div>
                 );
               })}
               <div style={{ color: "#94a3b8", fontSize: "0.48rem", marginTop: 2 }}>
-                {"E_flash = \u03BB / (0.0834 \u00D7 L). Calibrated from Ti at L=20mm. r = 0.0834 \u00D7 L = " + (R_FACTOR * gauge * 1000).toFixed(0) + " \u00B5m at L=" + gauge + "mm."}
+                {"E_flash = \u03BB / r. \u03BB (voltivity) is a material property. r = \u03BB / E_flash. Calibrated from Ti at L=20mm."}
               </div>
             </div>
           </div>
@@ -665,7 +665,7 @@ export default function ProcessWindowV5() {
                 <tr style={{ borderBottom: "1px solid #334155", color: "#94a3b8", fontSize: "0.54rem" }}>
                   <th style={{ textAlign: "left", padding: "1px 2px" }}>{""}</th>
                   <th style={{ textAlign: "right", padding: "1px 2px" }}>{"\u03BB"}</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>{"est.r"}</th>
+                  <th style={{ textAlign: "right", padding: "1px 2px" }}>{"r (\u00B5m)"}</th>
                   <th style={{ textAlign: "right", padding: "1px 2px" }}>{"rho(Tm)"}</th>
                   <th style={{ textAlign: "right", padding: "1px 2px" }}>{"k(th)"}</th>
                   <th style={{ textAlign: "right", padding: "1px 2px" }}>J_flash</th>
@@ -687,7 +687,7 @@ export default function ProcessWindowV5() {
                   var tr_E = tr_res.Epeak;
                   var ef = flashThreshold(m.lam, gauge);
                   var Jfl = ef > 0 && m.rhoM > 0 ? (ef * 100 / m.rhoM) / 1e6 : 0;
-                  var rEst = R_FACTOR * gauge * 1000;
+                  var rEst = E > 0 ? m.lam / E : 0;
                   var Ebest = Math.max(E, tr_E);
                   var gap = ef != null ? (Ebest / ef) : null;
                   var ok = ef != null ? gap > 0.8 : Ebest > 0.5;
@@ -743,8 +743,8 @@ export default function ProcessWindowV5() {
           <div><b style={{ color: "#8be9fd" }}>C<sub>p</sub></b>{" — Specific heat capacity [J/(kg\u00B7K)]"}</div>
           <div><b style={{ color: "#8be9fd" }}>{"\u03C1_m"}</b>{" — Mass density [kg/m\u00B3]"}</div>
           <div><b style={{ color: "#8be9fd" }}>k<sub>th</sub></b>{" — Thermal conductivity [W/(m\u00B7K)]"}</div>
-          <div><b style={{ color: "#8be9fd" }}>{"\u03BB"}</b>{" (voltility) — Flash threshold parameter, material-specific [V/cm \u00D7 \u00B5m]. E_flash = \u03BB / r"}</div>
-          <div><b style={{ color: "#8be9fd" }}>r</b>{" — Estimated grain-boundary neck radius [\u00B5m]. r = 0.0834 \u00D7 L (gauge length in mm) \u00D7 1000"}</div>
+          <div><b style={{ color: "#8be9fd" }}>{"\u03BB"}</b>{" (voltivity) — Flash threshold parameter, material-specific [V/cm \u00D7 \u00B5m]. \u03BB = E \u00D7 r"}</div>
+          <div><b style={{ color: "#8be9fd" }}>r</b>{" — Estimated grain-boundary neck radius [\u00B5m]. r = \u03BB / E_max. Varies per metal."}</div>
           <div><b style={{ color: "#8be9fd" }}>J</b>{" — Current density [A/mm\u00B2]"}</div>
           <div><b style={{ color: "#8be9fd" }}>E</b>{" — Electric field [V/cm]. E = \u03C1 \u00D7 J"}</div>
           <div><b style={{ color: "#8be9fd" }}>J_LOC</b>{" — Loss of Cohesion current density: the J at which the sample reaches T\u2098 [A/mm\u00B2]"}</div>
@@ -800,8 +800,8 @@ export default function ProcessWindowV5() {
 
         <div>
           <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>Flash Threshold</div>
-          <div>{"E_flash = \u03BB / r, where \u03BB (voltility) is a material-specific parameter and r is the estimated neck radius."}</div>
-          <div>{"r is estimated as r = 0.0834 \u00D7 L \u00D7 1000 (\u00B5m), calibrated from Ti experiments at L=20mm."}</div>
+          <div>{"\u03BB = E \u00D7 r, where \u03BB (voltivity) is a material-specific property and r is the estimated neck radius."}</div>
+          <div>{"r = \u03BB / E_max (\u00B5m). Each metal has a different r because \u03BB and E_max vary per material."}</div>
           <div>{"Flash sintering occurs when E_max (or E_peak) exceeds E_flash. The Gap column in the table shows E_best / E_flash."}</div>
         </div>
       </div>
