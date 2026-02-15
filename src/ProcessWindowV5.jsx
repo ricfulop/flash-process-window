@@ -747,11 +747,11 @@ export default function ProcessWindowV5() {
           <div><b style={{ color: "#8be9fd" }}>C<sub>p</sub></b>{" — Specific heat capacity [J/(kg\u00B7K)]"}</div>
           <div><b style={{ color: "#8be9fd" }}>{"\u03C1_m"}</b>{" — Mass density [kg/m\u00B3]"}</div>
           <div><b style={{ color: "#8be9fd" }}>k<sub>th</sub></b>{" — Thermal conductivity [W/(m\u00B7K)]"}</div>
-          <div><b style={{ color: "#8be9fd" }}>{"\u03BB"}</b>{" (voltivity) — Flash threshold parameter, material-specific [V/cm \u00D7 \u00B5m]. \u03BB = E \u00D7 r"}</div>
+          <div><b style={{ color: "#8be9fd" }}>{"\u03BB"}</b>{" (voltivity) — Fundamental material constant [V/cm \u00D7 \u00B5m]. Quantifies the threshold for resonant coupling between applied electric fields and phonon modes. \u03BB = E \u00D7 r. Invariant per material (CV < 2%). Spans ~1,000 V\u00B7\u00B5m (metals) to ~27,000 V\u00B7\u00B5m (covalent carbides)."}</div>
           <div><b style={{ color: "#8be9fd" }}>r</b>{" — Defect nucleation coherence length [\u00B5m]. r = \u03BB / E. The spatial region within which phonon-softened barriers enable defect nucleation. r = \u221A(\u03B1_th \u00D7 \u03C4_nuc). Varies per metal."}</div>
           <div><b style={{ color: "#8be9fd" }}>J</b>{" — Current density [A/mm\u00B2]"}</div>
           <div><b style={{ color: "#8be9fd" }}>E</b>{" — Electric field [V/cm]. E = \u03C1 \u00D7 J"}</div>
-          <div><b style={{ color: "#8be9fd" }}>J_LOC</b>{" — Loss of Cohesion current density: the J at which the compact loses structural integrity [A/mm\u00B2]. Distinct from T\u2098."}</div>
+          <div><b style={{ color: "#8be9fd" }}>J_LOC</b>{" — Loss of Cohesion current density [A/mm\u00B2]. The J at which the compact loses structural integrity. LOC is a structural failure distinct from simply reaching T\u2098; it depends on geometry, ramp rate, and cooling."}</div>
           <div><b style={{ color: "#8be9fd" }}>J_flash</b>{" — Current density at which E = E_flash (flash onset). J_flash = E_flash / \u03C1\u2098 [A/mm\u00B2]"}</div>
           <div><b style={{ color: "#8be9fd" }}>E_max</b>{" — Peak electric field at LOC: E_max = \u03C1\u2098 \u00D7 J_LOC [V/cm]"}</div>
           <div><b style={{ color: "#8be9fd" }}>E_flash</b>{" — Flash onset threshold: E_flash = \u03BB / r [V/cm]"}</div>
@@ -774,7 +774,7 @@ export default function ProcessWindowV5() {
         <div style={{ marginBottom: 8 }}>
           <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>Steady-State LOC (J_ss)</div>
           <div>{"At steady state, Joule heating balances cooling: \u03C1\u2098 \u00D7 J\u00B2 = q_total \u00D7 \u0394T, where \u0394T = T_m - 300K."}</div>
-          <div>{"Solving: J_ss = \u221A(q_total \u00D7 \u0394T / \u03C1\u2098). This is the minimum current density to reach T_m."}</div>
+          <div>{"Solving: J_ss = \u221A(q_total \u00D7 \u0394T / \u03C1\u2098). This is the thermal baseline; actual LOC occurs at higher J due to dynamic overshoot during ramping."}</div>
         </div>
 
         <div style={{ marginBottom: 8 }}>
@@ -790,7 +790,7 @@ export default function ProcessWindowV5() {
           <div>{"The E-J relationship is built by interpolating resistivity from \u03C1\u2080 to \u03C1\u2098 as a function of J/J_LOC:"}</div>
           <div style={{ paddingLeft: 10 }}>{"\u03C1(J) = \u03C1\u2080 + (\u03C1\u2098 - \u03C1\u2080) \u00D7 (J / J_LOC)^1.5"}</div>
           <div style={{ paddingLeft: 10 }}>{"E(J) = \u03C1(J) \u00D7 J"}</div>
-          <div>{"The 1.5 exponent models the non-linear resistivity increase as the sample approaches melting."}</div>
+          <div>{"The 1.5 exponent models the non-linear resistivity increase as the sample approaches LOC."}</div>
         </div>
 
         <div style={{ marginBottom: 8 }}>
@@ -798,15 +798,26 @@ export default function ProcessWindowV5() {
           <div>{"A time-stepping simulation ramps current at dI/dt = jdot \u00D7 A / 60 (A/s), capped at I_max:"}</div>
           <div style={{ paddingLeft: 10 }}>{"At each dt=2ms step: T += \u03C1(T) \u00D7 J\u00B2 / (\u03C1_m \u00D7 C_p) \u00D7 dt (adiabatic heating)"}</div>
           <div style={{ paddingLeft: 10 }}>{"\u03C1(T) = \u03C1\u2080 + (\u03C1\u2098 - \u03C1\u2080) \u00D7 (T - 300) / (T_m - 300)"}</div>
-          <div style={{ paddingLeft: 10 }}>{"Track max E = \u03C1(T) \u00D7 J. Stop when T \u2265 T_m."}</div>
-          <div>{"This captures the transient overshoot where E_peak can exceed the steady-state E_max because resistivity is still rising while current ramps."}</div>
+          <div style={{ paddingLeft: 10 }}>{"Track max E = \u03C1(T) \u00D7 J. Stop when T \u2265 T_m (used as proxy for LOC in thermal model)."}</div>
+          <div>{"This captures the transient overshoot where E_peak can exceed the steady-state E_max because resistivity is still rising while current ramps. Note: actual LOC is a structural failure, not simply reaching T_m."}</div>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>Voltivity Framework (Fulop, 2026)</div>
+          <div>{"Momentum conservation forbids direct coupling between applied electric fields and the short-wavelength acoustic phonons that destabilize crystal lattices. Energy must cascade through intermediate excitations:"}</div>
+          <div style={{ paddingLeft: 10 }}>{"Metals: Field \u2192 free electron acceleration \u2192 optical phonon emission \u2192 anharmonic decay to acoustic phonons (Klemens channel)"}</div>
+          <div style={{ paddingLeft: 10 }}>{"Insulators: Field \u2192 polaron/carrier activation \u2192 lattice relaxation producing acoustic phonons"}</div>
+          <div style={{ paddingLeft: 10 }}>{"Covalent: Field \u2192 carrier liberation from band gap \u2192 cascade (with activation bottleneck)"}</div>
+          <div>{"The master equation: \u03BB = E_defect / (k_soft \u00D7 0.533), where k_soft = 1 \u2212 0.533\u03B2 (phonon softening factor) and E_defect is the rate-limiting defect energy."}</div>
+          <div>{"\u03B2 formulas are class-specific: metals \u03B2 = 0.3\u03B3 (Gr\u00FCneisen), ionic oxides \u03B2 = 6400Z*/\u0398\u00B2_D + 1.30, perovskites \u03B2 = 1.0 + 0.11\u03B1_F."}</div>
+          <div>{"r is the defect nucleation coherence length: the spatial region within which phonon-softened barriers must persist for defect nucleation. r = \u221A(\u03B1_th \u00D7 \u03C4_nuc). Ranges from ~2 \u00B5m (WC) to ~50 \u00B5m (BaTiO\u2083)."}</div>
         </div>
 
         <div>
           <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>Flash Threshold</div>
-          <div>{"\u03BB = E \u00D7 r, where \u03BB (voltivity) is a material-specific property and r is the estimated neck radius."}</div>
-          <div>{"r = \u03BB / E_max (\u00B5m). Each metal has a different r because \u03BB and E_max vary per material."}</div>
-          <div>{"Flash sintering occurs when E_max (or E_peak) exceeds E_flash. The Gap column in the table shows E_best / E_flash."}</div>
+          <div>{"\u03BB = E \u00D7 r, where \u03BB (voltivity) is a fundamental material constant and r is the defect nucleation coherence length."}</div>
+          <div>{"E_flash = \u03BB / r [V/cm]. Flash onset occurs when the applied field reaches the voltivity threshold."}</div>
+          <div>{"Flash sintering occurs when E_max (or E_peak) exceeds E_flash. The Gap column shows E_best / E_flash; Gap > 1 means flash is expected."}</div>
         </div>
       </div>
       <div style={{
