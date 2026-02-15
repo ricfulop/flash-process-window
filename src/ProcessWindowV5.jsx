@@ -247,6 +247,7 @@ export default function ProcessWindowV5() {
   var _h = useState(8); var hConv = _h[0]; var setHConv = _h[1];
   var _v = useState(10); var vOff = _v[0]; var setVOff = _v[1];
   var _im = useState(100); var Imax = _im[0]; var setImax = _im[1];
+  var _he = useState(false); var hideExp = _he[0]; var setHideExp = _he[1];
 
   var mp = DB[metal];
   var dum = geo === "wire" ? diam : 0;
@@ -266,9 +267,10 @@ export default function ProcessWindowV5() {
     var R0 = Am2 > 0 ? mp.rho0 * Lm / Am2 : 0;
     var clipPct = est.cool.qTot > 0 ? est.cool.qClip / est.cool.qTot * 100 : 0;
     var Ef = flashThreshold(mp.lam, gauge);
+    var Jflash = Ef > 0 && mp.rhoM > 0 ? (Ef * 100 / mp.rhoM) / 1e6 : 0;
     var trans = transientEpeak(mp, thick, width, dum, gauge, Imax, jdot, geo === "wire");
     return {
-      Jloc: Jloc, Emax: Emax, Ef: Ef, tr: tr, NR: NR, tau: est.cool.tau,
+      Jloc: Jloc, Emax: Emax, Ef: Ef, Jflash: Jflash, tr: tr, NR: NR, tau: est.cool.tau,
       Epeak: trans.Epeak, tMelt: trans.tMelt, Imelt: trans.Imelt, Jmelt: trans.Jmelt, dIdt: trans.dIdt,
       I: I, s10: s10, R0: R0, Jss: est.Jss, clipPct: clipPct
     };
@@ -280,7 +282,9 @@ export default function ProcessWindowV5() {
       var est = estimateJloc(m, geo, thick, width, dum, gauge, jdot, hConv);
       var pts = buildEJ(m, est.Jloc, 100);
       var tr = transientEpeak(DB[m], thick, width, dum, gauge, Imax, jdot, geo === "wire");
-      c[m] = { pts: pts, Jloc: est.Jloc, Emax: DB[m].rhoM * est.Jloc * 1e6 / 100, Epeak: tr.Epeak, Jmelt: tr.Jmelt, Ef: flashThreshold(DB[m].lam, gauge) };
+      var mEf = flashThreshold(DB[m].lam, gauge);
+      var mJflash = mEf > 0 && DB[m].rhoM > 0 ? (mEf * 100 / DB[m].rhoM) / 1e6 : 0;
+      c[m] = { pts: pts, Jloc: est.Jloc, Emax: DB[m].rhoM * est.Jloc * 1e6 / 100, Epeak: tr.Epeak, Jmelt: tr.Jmelt, Ef: mEf, Jflash: mJflash };
     });
     return c;
   }, [geo, thick, width, diam, gauge, jdot, hConv, dum, Imax]);
@@ -384,6 +388,15 @@ export default function ProcessWindowV5() {
         {/* LEFT */}
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ background: "#1e293b", borderRadius: 6, padding: "6px 8px" }}>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 5, cursor: "pointer",
+              fontSize: "0.52rem", color: "#94a3b8", marginBottom: 4
+            }}>
+              <input type="checkbox" checked={hideExp}
+                onChange={function () { setHideExp(!hideExp); }}
+                style={{ accentColor: "#e94560", width: 12, height: 12 }} />
+              Hide experimental calibration dataset
+            </label>
             <div style={{
               fontSize: "0.54rem", color: "#94a3b8", letterSpacing: "0.1em",
               textTransform: "uppercase", marginBottom: 2
@@ -474,12 +487,12 @@ export default function ProcessWindowV5() {
                   <div key={k}>
                     <span style={{ color: m.color, fontWeight: 700 }}>{k}</span>
                     {": "}<b>{ef.toFixed(2)}</b>{" V/cm "}
-                    <span style={{ color: "#556", fontSize: "0.46rem" }}>{"(lam=" + m.lam + ")"}</span>
+                    <span style={{ color: "#94a3b8", fontSize: "0.46rem" }}>{"(voltility \u03BB=" + m.lam + ")"}</span>
                   </div>
                 );
               })}
-              <div style={{ color: "#556", fontSize: "0.48rem", marginTop: 2 }}>
-                {"E_flash = lam / (0.0834 x L). Calibrated from Ti at L=20mm. r = 0.0834 x L = " + (R_FACTOR * gauge * 1000).toFixed(0) + " um at L=" + gauge + "mm."}
+              <div style={{ color: "#94a3b8", fontSize: "0.48rem", marginTop: 2 }}>
+                {"E_flash = \u03BB / (0.0834 \u00D7 L). Calibrated from Ti at L=20mm. r = 0.0834 \u00D7 L = " + (R_FACTOR * gauge * 1000).toFixed(0) + " \u00B5m at L=" + gauge + "mm."}
               </div>
             </div>
           </div>
@@ -519,21 +532,23 @@ export default function ProcessWindowV5() {
                     label={{ value: metal + " onset " + uc.Ef.toFixed(2), position: "right", style: { fontSize: 8, fill: mp.color } }} />
                 ) : null}
                 {uc.Emax > 0 && uc.Emax < 8 ? (
-                  <ReferenceLine y={uc.Emax} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1}
-                    label={{ value: metal + " LOC " + uc.Emax.toFixed(2), position: "insideTopRight", style: { fontSize: 7, fill: "#f59e0b" } }} />
+                  <ReferenceLine y={uc.Emax} stroke={mp.color} strokeDasharray="3 3" strokeWidth={1}
+                    label={{ value: metal + " LOC " + uc.Emax.toFixed(2), position: "insideTopRight", style: { fontSize: 7, fill: mp.color } }} />
                 ) : null}
                 {metal !== "Ti" && flashThreshold(DB.Ti.lam, gauge) < 8 ? (
                   <ReferenceLine y={flashThreshold(DB.Ti.lam, gauge)} stroke="#2563eb40" strokeDasharray="4 4" strokeWidth={0.7}
                     label={{ value: "Ti " + flashThreshold(DB.Ti.lam, gauge).toFixed(2), position: "insideTopRight", style: { fontSize: 6, fill: "#2563eb60" } }} />
                 ) : null}
-                <Scatter data={scatter.filter(function (d) { return !d.isUser; })}>
-                  {scatter.filter(function (d) { return !d.isUser; }).map(function (d, i) {
-                    return <Cell key={i}
-                      fill={d.flash ? "#22c55e" : "#1e293b"}
-                      stroke={DB[d.m] ? DB[d.m].color : "#999"}
-                      strokeWidth={2} r={d.flash ? 6 : 4} />;
-                  })}
-                </Scatter>
+                {!hideExp ? (
+                  <Scatter data={scatter.filter(function (d) { return !d.isUser; })}>
+                    {scatter.filter(function (d) { return !d.isUser; }).map(function (d, i) {
+                      return <Cell key={i}
+                        fill={d.flash ? "#22c55e" : "#1e293b"}
+                        stroke={DB[d.m] ? DB[d.m].color : "#999"}
+                        strokeWidth={2} r={d.flash ? 6 : 4} />;
+                    })}
+                  </Scatter>
+                ) : null}
                 <Scatter data={scatter.filter(function (d) { return d.isUser; })}>
                   {scatter.filter(function (d) { return d.isUser; }).map(function (d, i) {
                     return <Cell key={i} fill={fa.c} stroke="#fff" strokeWidth={2.5} r={8} />;
@@ -545,7 +560,7 @@ export default function ProcessWindowV5() {
               display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap",
               fontSize: "0.55rem", fontFamily: FONT_M, color: "#64748b"
             }}>
-              {["Ti", "Cu", "Ni", "Al"].map(function (k) {
+              {!hideExp ? ["Ti", "Cu", "Ni", "Al"].map(function (k) {
                 return (
                   <span key={k} style={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <span style={{
@@ -555,13 +570,15 @@ export default function ProcessWindowV5() {
                     {k}
                   </span>
                 );
-              })}
-              <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: "50%", background: "#22c55e",
-                  display: "inline-block"
-                }} />{" flash"}
-              </span>
+              }) : null}
+              {!hideExp ? (
+                <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <span style={{
+                    width: 6, height: 6, borderRadius: "50%", background: "#22c55e",
+                    display: "inline-block"
+                  }} />{" flash"}
+                </span>
+              ) : null}
               <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <span style={{
                   width: 8, height: 8, borderRadius: "50%", background: fa.c,
@@ -605,8 +622,8 @@ export default function ProcessWindowV5() {
                     label={{ value: metal + " onset " + uc.Ef.toFixed(2), position: "right", style: { fontSize: 8, fill: mp.color } }} />
                 ) : null}
                 {uc.Jloc > 0 && uc.Jloc < Math.ceil(maxJ / 10) * 10 ? (
-                  <ReferenceLine x={Math.round(uc.Jloc * 10) / 10} stroke="#f59e0b" strokeDasharray="4 3" strokeWidth={1.5}
-                    label={{ value: metal + " LOC " + uc.Jloc.toFixed(0), position: "insideTopRight", style: { fontSize: 8, fill: "#f59e0b" } }} />
+                  <ReferenceLine x={Math.round(uc.Jloc * 10) / 10} stroke={mp.color} strokeDasharray="4 3" strokeWidth={1.5}
+                    label={{ value: metal + " LOC " + uc.Jloc.toFixed(0), position: "insideTopRight", style: { fontSize: 8, fill: mp.color } }} />
                 ) : null}
                 {metal !== "Ti" && flashThreshold(DB.Ti.lam, gauge) < 8 ? (
                   <ReferenceLine y={flashThreshold(DB.Ti.lam, gauge)} stroke="#2563eb40" strokeDasharray="4 4" strokeWidth={0.7} />
@@ -647,8 +664,11 @@ export default function ProcessWindowV5() {
               <thead>
                 <tr style={{ borderBottom: "1px solid #334155", color: "#94a3b8", fontSize: "0.54rem" }}>
                   <th style={{ textAlign: "left", padding: "1px 2px" }}>{""}</th>
+                  <th style={{ textAlign: "right", padding: "1px 2px" }}>{"\u03BB"}</th>
+                  <th style={{ textAlign: "right", padding: "1px 2px" }}>{"est.r"}</th>
                   <th style={{ textAlign: "right", padding: "1px 2px" }}>{"rho(Tm)"}</th>
                   <th style={{ textAlign: "right", padding: "1px 2px" }}>{"k(th)"}</th>
+                  <th style={{ textAlign: "right", padding: "1px 2px" }}>J_flash</th>
                   <th style={{ textAlign: "right", padding: "1px 2px" }}>J_LOC</th>
                   <th style={{ textAlign: "right", padding: "1px 2px" }}>E_max</th>
                   <th style={{ textAlign: "right", padding: "1px 2px" }}>Clip%</th>
@@ -666,6 +686,8 @@ export default function ProcessWindowV5() {
                   var tr_res = transientEpeak(m, thick, width, dum, gauge, Imax, jdot, geo === "wire");
                   var tr_E = tr_res.Epeak;
                   var ef = flashThreshold(m.lam, gauge);
+                  var Jfl = ef > 0 && m.rhoM > 0 ? (ef * 100 / m.rhoM) / 1e6 : 0;
+                  var rEst = R_FACTOR * gauge * 1000;
                   var Ebest = Math.max(E, tr_E);
                   var gap = ef != null ? (Ebest / ef) : null;
                   var ok = ef != null ? gap > 0.8 : Ebest > 0.5;
@@ -675,8 +697,11 @@ export default function ProcessWindowV5() {
                       background: k === metal ? "rgba(30,41,59,0.25)" : "transparent"
                     }}>
                       <td style={{ padding: "1px 2px", color: m.color, fontWeight: 700 }}>{k}</td>
+                      <td style={{ textAlign: "right", color: "#94a3b8" }}>{m.lam}</td>
+                      <td style={{ textAlign: "right", color: "#667" }}>{rEst.toFixed(0)}</td>
                       <td style={{ textAlign: "right" }}>{(m.rhoM * 1e8).toFixed(0)}</td>
                       <td style={{ textAlign: "right", color: "#667" }}>{m.k_th.toFixed(0)}</td>
+                      <td style={{ textAlign: "right", color: "#8be9fd" }}>{Jfl.toFixed(0)}</td>
                       <td style={{ textAlign: "right" }}>{est.Jloc.toFixed(0)}</td>
                       <td style={{
                         textAlign: "right", fontWeight: 700,
@@ -697,6 +722,87 @@ export default function ProcessWindowV5() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+      {/* Formulas & Definitions */}
+      <div style={{
+        background: "#111827", borderRadius: 8, padding: "10px 14px", marginTop: "0.5rem",
+        border: "1px solid #1e293b", fontSize: "0.56rem", fontFamily: FONT_M,
+        color: "#94a3b8", lineHeight: 1.7
+      }}>
+        <div style={{
+          fontSize: "0.58rem", color: "#e2e8f0", fontWeight: 700,
+          letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6
+        }}>Formulas & Variable Definitions</div>
+
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>Variable Definitions</div>
+          <div><b style={{ color: "#8be9fd" }}>{"\u03C1\u2080"}</b>{" (rho0) — Electrical resistivity at room temperature [\u03A9\u00B7m]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>{"\u03C1\u2098"}</b>{" (rhoM) — Electrical resistivity at melting point [\u03A9\u00B7m]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>T<sub>m</sub></b>{" — Melting temperature of the metal [K]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>C<sub>p</sub></b>{" — Specific heat capacity [J/(kg\u00B7K)]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>{"\u03C1_m"}</b>{" — Mass density [kg/m\u00B3]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>k<sub>th</sub></b>{" — Thermal conductivity [W/(m\u00B7K)]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>{"\u03BB"}</b>{" (voltility) — Flash threshold parameter, material-specific [V/cm \u00D7 \u00B5m]. E_flash = \u03BB / r"}</div>
+          <div><b style={{ color: "#8be9fd" }}>r</b>{" — Estimated grain-boundary neck radius [\u00B5m]. r = 0.0834 \u00D7 L (gauge length in mm) \u00D7 1000"}</div>
+          <div><b style={{ color: "#8be9fd" }}>J</b>{" — Current density [A/mm\u00B2]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>E</b>{" — Electric field [V/cm]. E = \u03C1 \u00D7 J"}</div>
+          <div><b style={{ color: "#8be9fd" }}>J_LOC</b>{" — Loss of Cohesion current density: the J at which the sample reaches T\u2098 [A/mm\u00B2]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>J_flash</b>{" — Current density at which E = E_flash (flash onset). J_flash = E_flash / \u03C1\u2098 [A/mm\u00B2]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>E_max</b>{" — Peak electric field at LOC: E_max = \u03C1\u2098 \u00D7 J_LOC [V/cm]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>E_flash</b>{" — Flash onset threshold: E_flash = \u03BB / r [V/cm]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>(N<sub>R</sub>)</b>{" — Normalized ramp: (N_R) = t_ramp / \u03C4_cool. <1 means fast ramp (adiabatic), >1 means cooling-limited"}</div>
+          <div><b style={{ color: "#8be9fd" }}>{"\u03C4_cool"}</b>{" — Cooling time constant: \u03C4 = \u03C1_m \u00D7 C_p / q_total [s]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>J_ss</b>{" — Steady-state LOC current density (no ramp-rate overshoot) [A/mm\u00B2]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>Clip %</b>{" — Fraction of heat loss via axial conduction to clips vs. total (convection + clip) [%]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>E_pk</b>{" — Transient peak E-field during current ramp (may exceed steady-state E_max) [V/cm]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>Gap</b>{" — Ratio of max achievable E (max of E_max, E_pk) to E_flash. Gap > 1 means flash is expected."}</div>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>Thermal Model — Fin + Clip Cooling</div>
+          <div>{"The sample is modelled as a thin conductor (foil or wire) with two heat-loss paths:"}</div>
+          <div style={{ paddingLeft: 10 }}>{"1. Convective cooling: q_conv = h \u00D7 (P/A), where P = perimeter, A = cross-section area, h = convection coefficient."}</div>
+          <div style={{ paddingLeft: 10 }}>{"2. Axial clip conduction (fin model): q_clip = 2 \u00D7 k_th \u00D7 m \u00D7 tanh(mL/2) / L, where m = \u221A(h\u00D7P / (k_th\u00D7A))."}</div>
+          <div>{"Total cooling: q_total = q_conv + q_clip. Cooling time constant: \u03C4 = \u03C1_m \u00D7 C_p / q_total."}</div>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>Steady-State LOC (J_ss)</div>
+          <div>{"At steady state, Joule heating balances cooling: \u03C1\u2098 \u00D7 J\u00B2 = q_total \u00D7 \u0394T, where \u0394T = T_m - 300K."}</div>
+          <div>{"Solving: J_ss = \u221A(q_total \u00D7 \u0394T / \u03C1\u2098). This is the minimum current density to reach T_m."}</div>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>Dynamic J_LOC Estimation</div>
+          <div>{"For metals with experimental calibration data (Ti, Ni, Cu, Al), J_LOC is estimated by scaling the reference measurement:"}</div>
+          <div style={{ paddingLeft: 10 }}>{"J_LOC = J_ss_ref \u00D7 (J_LOC_ref / J_ss_ref) \u00D7 (J_ss / J_ss_ref) \u00D7 (jdot / jdot_ref)^0.1"}</div>
+          <div>{"The geometric scaling (J_ss / J_ss_ref) accounts for different sample dimensions. The ramp-rate exponent (0.1) captures the weak overshoot effect."}</div>
+          <div>{"For metals without calibration data, a default overshoot factor of 2.8\u00D7 is used: J_LOC = J_ss \u00D7 2.8."}</div>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>E(J) Curve Construction</div>
+          <div>{"The E-J relationship is built by interpolating resistivity from \u03C1\u2080 to \u03C1\u2098 as a function of J/J_LOC:"}</div>
+          <div style={{ paddingLeft: 10 }}>{"\u03C1(J) = \u03C1\u2080 + (\u03C1\u2098 - \u03C1\u2080) \u00D7 (J / J_LOC)^1.5"}</div>
+          <div style={{ paddingLeft: 10 }}>{"E(J) = \u03C1(J) \u00D7 J"}</div>
+          <div>{"The 1.5 exponent models the non-linear resistivity increase as the sample approaches melting."}</div>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>Transient Solver (E_peak)</div>
+          <div>{"A time-stepping simulation ramps current at dI/dt = jdot \u00D7 A / 60 (A/s), capped at I_max:"}</div>
+          <div style={{ paddingLeft: 10 }}>{"At each dt=2ms step: T += \u03C1(T) \u00D7 J\u00B2 / (\u03C1_m \u00D7 C_p) \u00D7 dt (adiabatic heating)"}</div>
+          <div style={{ paddingLeft: 10 }}>{"\u03C1(T) = \u03C1\u2080 + (\u03C1\u2098 - \u03C1\u2080) \u00D7 (T - 300) / (T_m - 300)"}</div>
+          <div style={{ paddingLeft: 10 }}>{"Track max E = \u03C1(T) \u00D7 J. Stop when T \u2265 T_m."}</div>
+          <div>{"This captures the transient overshoot where E_peak can exceed the steady-state E_max because resistivity is still rising while current ramps."}</div>
+        </div>
+
+        <div>
+          <div style={{ color: "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>Flash Threshold</div>
+          <div>{"E_flash = \u03BB / r, where \u03BB (voltility) is a material-specific parameter and r is the estimated neck radius."}</div>
+          <div>{"r is estimated as r = 0.0834 \u00D7 L \u00D7 1000 (\u00B5m), calibrated from Ti experiments at L=20mm."}</div>
+          <div>{"Flash sintering occurs when E_max (or E_peak) exceeds E_flash. The Gap column in the table shows E_best / E_flash."}</div>
         </div>
       </div>
       <div style={{
