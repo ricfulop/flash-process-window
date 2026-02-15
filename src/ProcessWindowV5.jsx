@@ -163,6 +163,26 @@ function flashThreshold(lam, L_mm) {
   return lam / r;
 }
 
+/* Find J where E(J) curve crosses E_flash.
+   E(J) = [rho0 + (rhoM-rho0)*(J/Jloc)^1.5] * J * 1e6/100
+   Solve E(J) = Eflash by bisection. */
+function findJonset(mp, Jloc, Eflash) {
+  if (Eflash <= 0 || Jloc <= 0) return 0;
+  // Check if E at Jloc > Eflash (otherwise flash never occurs)
+  var Eloc = mp.rhoM * Jloc * 1e6 / 100;
+  if (Eloc < Eflash) return 0;
+  // Check if E at J=0+ > Eflash (onset is at ~0)
+  var lo = 0.1, hi = Jloc;
+  for (var i = 0; i < 60; i++) {
+    var mid = (lo + hi) / 2;
+    var frac = Math.min(1, Math.pow(mid / Jloc, 1.5));
+    var rho = mp.rho0 + (mp.rhoM - mp.rho0) * frac;
+    var E = rho * mid * 1e6 / 100;
+    if (E < Eflash) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
 var FONT_M = "monospace";
 var FONT_S = "system-ui, sans-serif";
 
@@ -268,7 +288,7 @@ export default function ProcessWindowV5() {
     var R0 = Am2 > 0 ? mp.rho0 * Lm / Am2 : 0;
     var clipPct = est.cool.qTot > 0 ? est.cool.qClip / est.cool.qTot * 100 : 0;
     var Ef = flashThreshold(mp.lam, gauge);
-    var Jflash = Ef > 0 && mp.rhoM > 0 ? (Ef * 100 / mp.rhoM) / 1e6 : 0;
+    var Jflash = findJonset(mp, Jloc, Ef);
     var Ionset = Jflash * Amm2;
     var trans = transientEpeak(mp, thick, width, dum, gauge, Imax, jdot, geo === "wire");
     return {
@@ -285,7 +305,7 @@ export default function ProcessWindowV5() {
       var pts = buildEJ(m, est.Jloc, 100);
       var tr = transientEpeak(DB[m], thick, width, dum, gauge, Imax, jdot, geo === "wire");
       var mEf = flashThreshold(DB[m].lam, gauge);
-      var mJflash = mEf > 0 && DB[m].rhoM > 0 ? (mEf * 100 / DB[m].rhoM) / 1e6 : 0;
+      var mJflash = findJonset(DB[m], est.Jloc, mEf);
       c[m] = { pts: pts, Jloc: est.Jloc, Emax: DB[m].rhoM * est.Jloc * 1e6 / 100, Epeak: tr.Epeak, Jmelt: tr.Jmelt, Ef: mEf, Jflash: mJflash };
     });
     return c;
@@ -732,7 +752,7 @@ export default function ProcessWindowV5() {
                   var tr_res = transientEpeak(m, thick, width, dum, gauge, Imax, jdot, geo === "wire");
                   var tr_E = tr_res.Epeak;
                   var ef = flashThreshold(m.lam, gauge);
-                  var Jfl = ef > 0 && m.rhoM > 0 ? (ef * 100 / m.rhoM) / 1e6 : 0;
+                  var Jfl = findJonset(m, est.Jloc, ef);
                   var rEst = E > 0 ? m.lam / E : 0;
                   var Ebest = Math.max(E, tr_E);
                   var gap = ef != null ? (Ebest / ef) : null;
