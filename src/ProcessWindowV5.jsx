@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, Label, Cell, LineChart, Line, Legend
+  ResponsiveContainer, ReferenceLine, ReferenceArea, Label, Cell, LineChart, Line, Legend
 } from "recharts";
 
 const DB = {
@@ -513,6 +513,10 @@ export default function ProcessWindowV5() {
             <ResponsiveContainer width="100%" height={215}>
               <ScatterChart margin={{ top: 5, right: 16, bottom: 18, left: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <ReferenceArea x1={0.003} x2={1} fill="#3b82f6" fillOpacity={0.06} />
+                <ReferenceArea x1={1} x2={300} fill="#f59e0b" fillOpacity={0.04} />
+                <ReferenceLine x={1} stroke="#475569" strokeDasharray="6 3" strokeWidth={1}
+                  label={{ value: "NR=1", position: "top", style: { fontSize: 7, fill: "#64748b", fontFamily: "'IBM Plex Mono', monospace" } }} />
                 <XAxis dataKey="NR" type="number" scale="log" domain={[0.003, 300]}
                   ticks={[0.01, 0.1, 1, 10, 100]}
                   tickFormatter={function (v) { return String(v); }}
@@ -744,10 +748,10 @@ export default function ProcessWindowV5() {
           <div><b style={{ color: "#8be9fd" }}>{"\u03C1_m"}</b>{" — Mass density [kg/m\u00B3]"}</div>
           <div><b style={{ color: "#8be9fd" }}>k<sub>th</sub></b>{" — Thermal conductivity [W/(m\u00B7K)]"}</div>
           <div><b style={{ color: "#8be9fd" }}>{"\u03BB"}</b>{" (voltivity) — Flash threshold parameter, material-specific [V/cm \u00D7 \u00B5m]. \u03BB = E \u00D7 r"}</div>
-          <div><b style={{ color: "#8be9fd" }}>r</b>{" — Estimated grain-boundary neck radius [\u00B5m]. r = \u03BB / E_max. Varies per metal."}</div>
+          <div><b style={{ color: "#8be9fd" }}>r</b>{" — Defect nucleation coherence length [\u00B5m]. r = \u03BB / E. The spatial region within which phonon-softened barriers enable defect nucleation. r = \u221A(\u03B1_th \u00D7 \u03C4_nuc). Varies per metal."}</div>
           <div><b style={{ color: "#8be9fd" }}>J</b>{" — Current density [A/mm\u00B2]"}</div>
           <div><b style={{ color: "#8be9fd" }}>E</b>{" — Electric field [V/cm]. E = \u03C1 \u00D7 J"}</div>
-          <div><b style={{ color: "#8be9fd" }}>J_LOC</b>{" — Loss of Cohesion current density: the J at which the sample reaches T\u2098 [A/mm\u00B2]"}</div>
+          <div><b style={{ color: "#8be9fd" }}>J_LOC</b>{" — Loss of Cohesion current density: the J at which the compact loses structural integrity [A/mm\u00B2]. Distinct from T\u2098."}</div>
           <div><b style={{ color: "#8be9fd" }}>J_flash</b>{" — Current density at which E = E_flash (flash onset). J_flash = E_flash / \u03C1\u2098 [A/mm\u00B2]"}</div>
           <div><b style={{ color: "#8be9fd" }}>E_max</b>{" — Peak electric field at LOC: E_max = \u03C1\u2098 \u00D7 J_LOC [V/cm]"}</div>
           <div><b style={{ color: "#8be9fd" }}>E_flash</b>{" — Flash onset threshold: E_flash = \u03BB / r [V/cm]"}</div>
