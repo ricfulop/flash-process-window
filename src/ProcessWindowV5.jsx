@@ -248,6 +248,7 @@ export default function ProcessWindowV5() {
   var _v = useState(10); var vOff = _v[0]; var setVOff = _v[1];
   var _im = useState(100); var Imax = _im[0]; var setImax = _im[1];
   var _he = useState(false); var hideExp = _he[0]; var setHideExp = _he[1];
+  var _ho = useState(false); var hideOther = _ho[0]; var setHideOther = _ho[1];
 
   var mp = DB[metal];
   var dum = geo === "wire" ? diam : 0;
@@ -268,11 +269,12 @@ export default function ProcessWindowV5() {
     var clipPct = est.cool.qTot > 0 ? est.cool.qClip / est.cool.qTot * 100 : 0;
     var Ef = flashThreshold(mp.lam, gauge);
     var Jflash = Ef > 0 && mp.rhoM > 0 ? (Ef * 100 / mp.rhoM) / 1e6 : 0;
+    var Ionset = Jflash * Amm2;
     var trans = transientEpeak(mp, thick, width, dum, gauge, Imax, jdot, geo === "wire");
     return {
       Jloc: Jloc, Emax: Emax, Ef: Ef, Jflash: Jflash, tr: tr, NR: NR, tau: est.cool.tau,
       Epeak: trans.Epeak, tMelt: trans.tMelt, Imelt: trans.Imelt, Jmelt: trans.Jmelt, dIdt: trans.dIdt,
-      I: I, s10: s10, R0: R0, Jss: est.Jss, clipPct: clipPct
+      I: I, Ionset: Ionset, Amm2: Amm2, s10: s10, R0: R0, Jss: est.Jss, clipPct: clipPct
     };
   }, [metal, geo, thick, width, diam, gauge, jdot, hConv, vOff, mp, dum, Imax]);
 
@@ -397,6 +399,15 @@ export default function ProcessWindowV5() {
                 style={{ accentColor: "#e94560", width: 12, height: 12 }} />
               Hide experimental calibration dataset
             </label>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 5, cursor: "pointer",
+              fontSize: "0.52rem", color: "#94a3b8", marginBottom: 4
+            }}>
+              <input type="checkbox" checked={hideOther}
+                onChange={function () { setHideOther(!hideOther); }}
+                style={{ accentColor: "#3b82f6", width: 12, height: 12 }} />
+              Hide non-selected materials from E(J)
+            </label>
             <div style={{
               fontSize: "0.54rem", color: "#94a3b8", letterSpacing: "0.1em",
               textTransform: "uppercase", marginBottom: 2
@@ -453,6 +464,8 @@ export default function ProcessWindowV5() {
             </div>
             <InfoRow label="E_max (at Tm)" val={uc.Emax.toFixed(3)} unit="V/cm" hl />
             <InfoRow label="J_LOC (thermal)" val={uc.Jloc.toFixed(0)} unit="A/mm2" />
+            <InfoRow label="J_onset (flash)" val={uc.Jflash.toFixed(0)} unit="A/mm2" />
+            <InfoRow label="I_onset" val={uc.Ionset.toFixed(1)} unit="A" />
             <InfoRow label="E_flash (threshold)" val={uc.Ef.toFixed(3)} unit="V/cm" />
             <InfoRow label="E_peak (transient)" val={uc.Epeak.toFixed(3)} unit="V/cm" hl />
             <InfoRow label="J at melt" val={uc.Jmelt.toFixed(0)} unit="A/mm2" dim />
@@ -510,11 +523,17 @@ export default function ProcessWindowV5() {
             }}>
               PROCESS WINDOW -- Emax vs (NR)
             </div>
-            <ResponsiveContainer width="100%" height={215}>
-              <ScatterChart margin={{ top: 5, right: 16, bottom: 18, left: 6 }}>
+            <ResponsiveContainer width="100%" height={235}>
+              <ScatterChart margin={{ top: 14, right: 16, bottom: 18, left: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <ReferenceArea x1={0.003} x2={1} fill="#3b82f6" fillOpacity={0.06} />
-                <ReferenceArea x1={1} x2={300} fill="#f59e0b" fillOpacity={0.04} />
+                <ReferenceArea x1={0.003} x2={1} fill="#3b82f6" fillOpacity={0.06}
+                  label={{ value: "ADIABATIC", position: "insideTopLeft", style: { fontSize: 8, fill: "#3b82f680", fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace" } }} />
+                <ReferenceArea x1={1} x2={300} fill="#f59e0b" fillOpacity={0.04}
+                  label={{ value: "COOLING LIMITED", position: "insideTopRight", style: { fontSize: 8, fill: "#f59e0b70", fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace" } }} />
+                {uc.Ef > 0 && uc.Emax > 0 && uc.Ef < uc.Emax ? (
+                  <ReferenceArea y1={uc.Ef} y2={Math.min(uc.Emax, 8)} x1={0.003} x2={300}
+                    fill="#22c55e" fillOpacity={0.08} />
+                ) : null}
                 <ReferenceLine x={1} stroke="#475569" strokeDasharray="6 3" strokeWidth={1}
                   label={{ value: "NR=1", position: "top", style: { fontSize: 7, fill: "#64748b", fontFamily: "'IBM Plex Mono', monospace" } }} />
                 <XAxis dataKey="NR" type="number" scale="log" domain={[0.003, 300]}
@@ -558,8 +577,22 @@ export default function ProcessWindowV5() {
                     return <Cell key={i} fill={fa.c} stroke="#fff" strokeWidth={2.5} r={8} />;
                   })}
                 </Scatter>
+                {uc.Ef > 0 && uc.Ef < 8 ? (
+                  <Scatter data={[{ NR: uc.NR, Emax: uc.Ef, label: metal + " onset", flash: true, isUser: true }]}>
+                    {[0].map(function (_, i) {
+                      return <Cell key={i} fill="none" stroke={mp.color} strokeWidth={2} r={6} />;
+                    })}
+                  </Scatter>
+                ) : null}
               </ScatterChart>
             </ResponsiveContainer>
+            <div style={{
+              fontSize: "0.42rem", fontFamily: FONT_M, color: "#475569",
+              textAlign: "center", marginBottom: 2, lineHeight: 1.4
+            }}>
+              {"Adiabatic (NR<1): ramp is faster than cooling \u2014 sample heats nearly without loss. "}
+              {"Cooling limited (NR>1): ramp is slow \u2014 cooling fights Joule heating, higher J needed for LOC."}
+            </div>
             <div style={{
               display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap",
               fontSize: "0.55rem", fontFamily: FONT_M, color: "#64748b"
@@ -600,22 +633,27 @@ export default function ProcessWindowV5() {
               fontSize: "0.58rem", fontFamily: FONT_M, color: "#94a3b8",
               textAlign: "center"
             }}>
-              {"E(J) AT " + geoStr.toUpperCase() + ", jdot=" + jdot}
+              {"E(J) AT " + geoStr.toUpperCase() + ", \u0307J = " + jdot + " A/mm\u00B2/min"}
             </div>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={ejData} margin={{ top: 4, right: 12, bottom: 32, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="J" type="number" domain={[0, Math.ceil(maxJ / 10) * 10]}
                   tick={{ fontSize: 8, fill: "#64748b" }} stroke="#334155">
-                  <Label value="J (A/mm²)" position="insideBottom" offset={-18}
-                    style={{ fontSize: 8, fill: "#94a3b8" }} />
+                  <Label value={"J (A/mm\u00B2)  \u2502  I (A) at A=" + uc.Amm2.toFixed(2) + "mm\u00B2: J\u00D7" + uc.Amm2.toFixed(2)} position="insideBottom" offset={-18}
+                    style={{ fontSize: 7, fill: "#94a3b8" }} />
                 </XAxis>
                 <YAxis type="number" domain={[0, Math.ceil(maxE * 10) / 10]}
                   tick={{ fontSize: 8, fill: "#64748b" }} stroke="#334155">
                   <Label value="E (V/cm)" angle={-90} position="insideLeft" offset={5}
                     style={{ fontSize: 8, fill: "#94a3b8" }} />
                 </YAxis>
-                {CHART_METALS.map(function (m) {
+                {uc.Ef > 0 && uc.Emax > 0 && uc.Jflash > 0 && uc.Ef < uc.Emax ? (
+                  <ReferenceArea x1={uc.Jflash} x2={Math.round(uc.Jloc * 10) / 10}
+                    y1={uc.Ef} y2={Math.min(uc.Emax, Math.ceil(maxE * 10) / 10)}
+                    fill="#22c55e" fillOpacity={0.1} />
+                ) : null}
+                {(hideOther ? [metal] : CHART_METALS).map(function (m) {
                   return <Line key={m} dataKey={"E_" + m} stroke={DB[m].color}
                     strokeWidth={m === metal ? 3 : 1.5} dot={false} name={m} connectNulls
                     strokeDasharray={m === metal ? undefined : "4 2"}
@@ -623,7 +661,11 @@ export default function ProcessWindowV5() {
                 })}
                 {uc.Ef > 0 && uc.Ef < 8 ? (
                   <ReferenceLine y={uc.Ef} stroke={mp.color} strokeDasharray="6 3" strokeWidth={1.5}
-                    label={{ value: metal + " onset " + uc.Ef.toFixed(2), position: "right", style: { fontSize: 8, fill: mp.color } }} />
+                    label={{ value: metal + " E_flash " + uc.Ef.toFixed(2), position: "right", style: { fontSize: 8, fill: mp.color } }} />
+                ) : null}
+                {uc.Jflash > 0 && uc.Jflash < Math.ceil(maxJ / 10) * 10 ? (
+                  <ReferenceLine x={Math.round(uc.Jflash * 10) / 10} stroke={mp.color} strokeDasharray="2 3" strokeWidth={1}
+                    label={{ value: "J_onset " + uc.Jflash.toFixed(0) + " (I=" + uc.Ionset.toFixed(1) + "A)", position: "insideTop", style: { fontSize: 7, fill: mp.color } }} />
                 ) : null}
                 {uc.Jloc > 0 && uc.Jloc < Math.ceil(maxJ / 10) * 10 ? (
                   <ReferenceLine x={Math.round(uc.Jloc * 10) / 10} stroke={mp.color} strokeDasharray="4 3" strokeWidth={1.5}
