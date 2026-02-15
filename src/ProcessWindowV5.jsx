@@ -27,7 +27,7 @@ const DB = {
     name: "Aluminum", rho0: 2.65e-8, rhoM: 1.2e-7, Tm: 933, Cp: 897,
     rho_m: 2700, k_th: 237, lam: 970,
     ref_jdot: 244, ref_Jloc: 150, ref_t: 25, ref_w: 6, ref_L: 20,
-    Eflash: null, Efsrc: null, color: "#d97706"
+    Eflash: null, Efsrc: null, color: "#ef4444"
   },
   Fe: {
     name: "Iron", rho0: 9.71e-8, rhoM: 1.3e-6, Tm: 1811, Cp: 449,
@@ -227,7 +227,7 @@ function MapTip(props) {
     }}>
       <div style={{ fontWeight: 700, color: c }}>{d.label || "?"}{d.isUser ? " *" : ""}</div>
       <div>{"Emax = " + (d.Emax != null ? d.Emax.toFixed(3) : "?") + " V/cm"}</div>
-      <div>{"NR = " + (d.NR != null ? d.NR.toFixed(3) : "?")}</div>
+      <div>{"(NR) = " + (d.NR != null ? d.NR.toFixed(3) : "?")}</div>
       {d.Jloc != null ? <div>{"J_LOC = " + Math.round(d.Jloc)}</div> : null}
       <div style={{ fontWeight: 700, color: c, marginTop: 1 }}>
         {d.flash ? "FLASH" : "LOC only"}
@@ -374,7 +374,7 @@ export default function ProcessWindowV5() {
           background: "linear-gradient(135deg,#e2e8f0,#94a3b8)",
           WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0
         }}>
-          Flash Process Window v5
+          Metal Flash Process Window v6
         </h1>
         <p style={{ fontFamily: FONT_M, fontSize: "0.58rem", color: "#64748b", margin: "1px 0 0" }}>
           fin+clip thermal model | dynamic E(J) | 8 metals | extended ranges
@@ -447,7 +447,7 @@ export default function ProcessWindowV5() {
             <InfoRow label="t to melt" val={(uc.tMelt * 1000).toFixed(0)} unit="ms" dim />
             <InfoRow label="J_ss (steady)" val={uc.Jss.toFixed(0)} unit="A/mm2" dim />
             <InfoRow label="Clip share" val={uc.clipPct.toFixed(0)} unit="%" dim />
-            <InfoRow label="N_R" val={uc.NR.toFixed(3)} />
+            <InfoRow label="(N_R)" val={uc.NR.toFixed(3)} />
             <InfoRow label="tau_cool" val={uc.tau.toFixed(1)} unit="s" dim />
             <InfoRow label="I at LOC" val={uc.I.toFixed(1)} unit="A" />
             <InfoRow label="Voff/V @10%J" val={(uc.s10 * 100).toFixed(1)} unit="%"
@@ -495,7 +495,7 @@ export default function ProcessWindowV5() {
               fontSize: "0.58rem", fontFamily: FONT_M, color: "#94a3b8",
               textAlign: "center"
             }}>
-              PROCESS WINDOW -- Emax vs NR
+              PROCESS WINDOW -- Emax vs (NR)
             </div>
             <ResponsiveContainer width="100%" height={215}>
               <ScatterChart margin={{ top: 5, right: 16, bottom: 18, left: 6 }}>
@@ -504,7 +504,7 @@ export default function ProcessWindowV5() {
                   ticks={[0.01, 0.1, 1, 10, 100]}
                   tickFormatter={function (v) { return String(v); }}
                   tick={{ fontSize: 8, fill: "#64748b" }} stroke="#334155">
-                  <Label value="NR = t_ramp / tau_cool" position="insideBottom" offset={-7}
+                  <Label value="(NR) = t_ramp / tau_cool" position="insideBottom" offset={-7}
                     style={{ fontSize: 8, fill: "#94a3b8" }} />
                 </XAxis>
                 <YAxis dataKey="Emax" type="number" scale="log" domain={[0.02, 10]}
@@ -516,7 +516,11 @@ export default function ProcessWindowV5() {
                 <Tooltip content={MapTip} />
                 {uc.Ef > 0 && uc.Ef < 8 ? (
                   <ReferenceLine y={uc.Ef} stroke={mp.color} strokeDasharray="6 4" strokeWidth={1.5}
-                    label={{ value: metal + " flash " + uc.Ef.toFixed(2), position: "right", style: { fontSize: 8, fill: mp.color } }} />
+                    label={{ value: metal + " onset " + uc.Ef.toFixed(2), position: "right", style: { fontSize: 8, fill: mp.color } }} />
+                ) : null}
+                {uc.Emax > 0 && uc.Emax < 8 ? (
+                  <ReferenceLine y={uc.Emax} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1}
+                    label={{ value: metal + " LOC " + uc.Emax.toFixed(2), position: "insideTopRight", style: { fontSize: 7, fill: "#f59e0b" } }} />
                 ) : null}
                 {metal !== "Ti" && flashThreshold(DB.Ti.lam, gauge) < 8 ? (
                   <ReferenceLine y={flashThreshold(DB.Ti.lam, gauge)} stroke="#2563eb40" strokeDasharray="4 4" strokeWidth={0.7}
@@ -577,12 +581,12 @@ export default function ProcessWindowV5() {
             }}>
               {"E(J) AT " + geoStr.toUpperCase() + ", jdot=" + jdot}
             </div>
-            <ResponsiveContainer width="100%" height={225}>
-              <LineChart data={ejData} margin={{ top: 4, right: 12, bottom: 20, left: 8 }}>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={ejData} margin={{ top: 4, right: 12, bottom: 32, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="J" type="number" domain={[0, Math.ceil(maxJ / 10) * 10]}
                   tick={{ fontSize: 8, fill: "#64748b" }} stroke="#334155">
-                  <Label value="J (A/mm2)" position="insideBottom" offset={-8}
+                  <Label value="J (A/mm²)" position="insideBottom" offset={-18}
                     style={{ fontSize: 8, fill: "#94a3b8" }} />
                 </XAxis>
                 <YAxis type="number" domain={[0, Math.ceil(maxE * 10) / 10]}
@@ -598,12 +602,16 @@ export default function ProcessWindowV5() {
                 })}
                 {uc.Ef > 0 && uc.Ef < 8 ? (
                   <ReferenceLine y={uc.Ef} stroke={mp.color} strokeDasharray="6 3" strokeWidth={1.5}
-                    label={{ value: metal + " flash " + uc.Ef.toFixed(2), position: "right", style: { fontSize: 8, fill: mp.color } }} />
+                    label={{ value: metal + " onset " + uc.Ef.toFixed(2), position: "right", style: { fontSize: 8, fill: mp.color } }} />
+                ) : null}
+                {uc.Jloc > 0 && uc.Jloc < Math.ceil(maxJ / 10) * 10 ? (
+                  <ReferenceLine x={Math.round(uc.Jloc * 10) / 10} stroke="#f59e0b" strokeDasharray="4 3" strokeWidth={1.5}
+                    label={{ value: metal + " LOC " + uc.Jloc.toFixed(0), position: "insideTopRight", style: { fontSize: 8, fill: "#f59e0b" } }} />
                 ) : null}
                 {metal !== "Ti" && flashThreshold(DB.Ti.lam, gauge) < 8 ? (
                   <ReferenceLine y={flashThreshold(DB.Ti.lam, gauge)} stroke="#2563eb40" strokeDasharray="4 4" strokeWidth={0.7} />
                 ) : null}
-                <Legend wrapperStyle={{ fontSize: 9, paddingTop: 0 }} />
+                <Legend wrapperStyle={{ fontSize: 9, paddingTop: 0 }} verticalAlign="top" />
               </LineChart>
             </ResponsiveContainer>
             <div style={{
@@ -695,7 +703,7 @@ export default function ProcessWindowV5() {
         textAlign: "center", marginTop: "0.3rem", fontSize: "0.5rem",
         fontFamily: FONT_M, color: "#475569"
       }}>
-        v5 -- 8 metals | fin+clip model | t 5-1000um, w 0.25-25mm, L 2-200mm, jdot 50-50k, h 2-200
+        v6 -- 8 metals | fin+clip model | t 5-1000um, w 0.25-25mm, L 2-200mm, jdot 50-50k, h 2-200
       </div>
     </div>
   );
