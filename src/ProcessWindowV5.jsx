@@ -4,59 +4,360 @@ import {
   ResponsiveContainer, ReferenceLine, ReferenceArea, Label, Cell, LineChart, Line, Legend
 } from "recharts";
 
+/* ═══════════════════════════════════════════════════════════════════
+   COMPREHENSIVE METALS DATABASE — 49 pure metals
+   Source: Voltivity DFT Handbook v12 (voltivity λ),
+           CRC Handbook of Chemistry & Physics (physical properties),
+           ASM International / Smithells (resistivity at melt)
+   ═══════════════════════════════════════════════════════════════════ */
 const DB = {
+  /* ── ALKALI METALS ── */
+  Li: {
+    name: "Lithium", rho0: 9.28e-8, rhoM: 2.6e-7, Tm: 454, Cp: 3582,
+    rho_m: 534, k_th: 84.8, lam: 972,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#dc2626", cat: "Alkali"
+  },
+  Na: {
+    name: "Sodium", rho0: 4.77e-8, rhoM: 1.3e-7, Tm: 371, Cp: 1228,
+    rho_m: 971, k_th: 142, lam: 437,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#f97316", cat: "Alkali"
+  },
+  K: {
+    name: "Potassium", rho0: 7.2e-8, rhoM: 2.0e-7, Tm: 337, Cp: 757,
+    rho_m: 862, k_th: 102.5, lam: 248,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#fb923c", cat: "Alkali"
+  },
+  /* ── ALKALINE EARTH METALS ── */
+  Be: {
+    name: "Beryllium", rho0: 3.56e-8, rhoM: 3.4e-7, Tm: 1560, Cp: 1825,
+    rho_m: 1850, k_th: 200, lam: 4071,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#84cc16", cat: "Alkaline Earth"
+  },
+  Mg: {
+    name: "Magnesium", rho0: 4.39e-8, rhoM: 2.7e-7, Tm: 923, Cp: 1023,
+    rho_m: 1738, k_th: 156, lam: 1051,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#22c55e", cat: "Alkaline Earth"
+  },
+  Ca: {
+    name: "Calcium", rho0: 3.36e-8, rhoM: 2.1e-7, Tm: 1115, Cp: 647,
+    rho_m: 1550, k_th: 201, lam: 667,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#16a34a", cat: "Alkaline Earth"
+  },
+  Sr: {
+    name: "Strontium", rho0: 1.32e-7, rhoM: 5.5e-7, Tm: 1050, Cp: 301,
+    rho_m: 2640, k_th: 35.4, lam: 424,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#15803d", cat: "Alkaline Earth"
+  },
+  Ba: {
+    name: "Barium", rho0: 3.32e-7, rhoM: 1.0e-6, Tm: 1000, Cp: 204,
+    rho_m: 3510, k_th: 18.4, lam: 330,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#166534", cat: "Alkaline Earth"
+  },
+  /* ── TRANSITION METALS — 3d ── */
+  Sc: {
+    name: "Scandium", rho0: 5.5e-7, rhoM: 1.8e-6, Tm: 1814, Cp: 568,
+    rho_m: 2985, k_th: 15.8, lam: 1020,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#06b6d4", cat: "3d Transition"
+  },
   Ti: {
     name: "Titanium", rho0: 4.2e-7, rhoM: 1.78e-6, Tm: 1941, Cp: 523,
     rho_m: 4510, k_th: 21.9, lam: 1168,
     ref_jdot: 500, ref_Jloc: 68, ref_t: 100, ref_w: 6, ref_L: 20,
-    Eflash: null, Efsrc: null, color: "#2563eb"
+    Eflash: null, Efsrc: null, color: "#2563eb", cat: "3d Transition"
   },
-  Ni: {
-    name: "Nickel", rho0: 6.99e-8, rhoM: 3.5e-7, Tm: 1728, Cp: 444,
-    rho_m: 8908, k_th: 90.9, lam: 1090,
-    ref_jdot: 1000, ref_Jloc: 39, ref_t: 200, ref_w: 6, ref_L: 20,
-    Eflash: null, Efsrc: null, color: "#525252"
+  V: {
+    name: "Vanadium", rho0: 1.97e-7, rhoM: 7.6e-7, Tm: 2183, Cp: 489,
+    rho_m: 6110, k_th: 30.7, lam: 1014,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#7c3aed", cat: "3d Transition"
   },
-  Cu: {
-    name: "Copper", rho0: 1.68e-8, rhoM: 1.0e-7, Tm: 1358, Cp: 385,
-    rho_m: 8960, k_th: 401, lam: 818,
-    ref_jdot: 244, ref_Jloc: 229, ref_t: 50, ref_w: 6, ref_L: 20,
-    Eflash: null, Efsrc: null, color: "#B87333"
+  Cr: {
+    name: "Chromium", rho0: 1.27e-7, rhoM: 1.3e-6, Tm: 2180, Cp: 449,
+    rho_m: 7150, k_th: 93.9, lam: 1763,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#6d28d9", cat: "3d Transition"
   },
-  Al: {
-    name: "Aluminum", rho0: 2.65e-8, rhoM: 1.2e-7, Tm: 933, Cp: 897,
-    rho_m: 2700, k_th: 237, lam: 970,
-    ref_jdot: 244, ref_Jloc: 150, ref_t: 25, ref_w: 6, ref_L: 20,
-    Eflash: null, Efsrc: null, color: "#ef4444"
+  Mn: {
+    name: "Manganese", rho0: 1.44e-6, rhoM: 2.6e-6, Tm: 1519, Cp: 479,
+    rho_m: 7470, k_th: 7.8, lam: 1113,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#9333ea", cat: "3d Transition"
   },
   Fe: {
     name: "Iron", rho0: 9.71e-8, rhoM: 1.3e-6, Tm: 1811, Cp: 449,
     rho_m: 7874, k_th: 80.4, lam: 1192,
     ref_jdot: null, ref_Jloc: null, ref_t: 100, ref_w: 6, ref_L: 20,
-    Eflash: null, Efsrc: null, color: "#8B4513"
+    Eflash: null, Efsrc: null, color: "#8B4513", cat: "3d Transition"
+  },
+  Co: {
+    name: "Cobalt", rho0: 5.6e-8, rhoM: 4.3e-7, Tm: 1768, Cp: 421,
+    rho_m: 8900, k_th: 100, lam: 1083,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#3b82f6", cat: "3d Transition"
+  },
+  Ni: {
+    name: "Nickel", rho0: 6.99e-8, rhoM: 3.5e-7, Tm: 1728, Cp: 444,
+    rho_m: 8908, k_th: 90.9, lam: 1090,
+    ref_jdot: 1000, ref_Jloc: 39, ref_t: 200, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#525252", cat: "3d Transition"
+  },
+  Cu: {
+    name: "Copper", rho0: 1.68e-8, rhoM: 1.0e-7, Tm: 1358, Cp: 385,
+    rho_m: 8960, k_th: 401, lam: 818,
+    ref_jdot: 244, ref_Jloc: 229, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#B87333", cat: "3d Transition"
+  },
+  Zn: {
+    name: "Zinc", rho0: 5.9e-8, rhoM: 3.5e-7, Tm: 693, Cp: 388,
+    rho_m: 7140, k_th: 116, lam: 721,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#64748b", cat: "3d Transition"
+  },
+  /* ── TRANSITION METALS — 4d ── */
+  Y: {
+    name: "Yttrium", rho0: 5.96e-7, rhoM: 1.8e-6, Tm: 1799, Cp: 298,
+    rho_m: 4472, k_th: 17.2, lam: 776,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#0891b2", cat: "4d Transition"
+  },
+  Zr: {
+    name: "Zirconium", rho0: 4.21e-7, rhoM: 1.5e-6, Tm: 2128, Cp: 278,
+    rho_m: 6506, k_th: 22.7, lam: 840,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#0e7490", cat: "4d Transition"
+  },
+  Nb: {
+    name: "Niobium", rho0: 1.52e-7, rhoM: 5.7e-7, Tm: 2750, Cp: 265,
+    rho_m: 8570, k_th: 53.7, lam: 706,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#155e75", cat: "4d Transition"
+  },
+  Mo: {
+    name: "Molybdenum", rho0: 5.34e-8, rhoM: 3.6e-7, Tm: 2896, Cp: 251,
+    rho_m: 10220, k_th: 138, lam: 1168,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#0369a1", cat: "4d Transition"
+  },
+  Ru: {
+    name: "Ruthenium", rho0: 7.1e-8, rhoM: 4.7e-7, Tm: 2607, Cp: 238,
+    rho_m: 12370, k_th: 117, lam: 1381,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#0284c7", cat: "4d Transition"
+  },
+  Rh: {
+    name: "Rhodium", rho0: 4.33e-8, rhoM: 2.2e-7, Tm: 2237, Cp: 243,
+    rho_m: 12410, k_th: 150, lam: 1057,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#0ea5e9", cat: "4d Transition"
+  },
+  Pd: {
+    name: "Palladium", rho0: 1.05e-7, rhoM: 4.3e-7, Tm: 1828, Cp: 246,
+    rho_m: 12020, k_th: 71.8, lam: 611,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#1d4ed8", cat: "4d Transition"
+  },
+  Ag: {
+    name: "Silver", rho0: 1.587e-8, rhoM: 9.6e-8, Tm: 1235, Cp: 235,
+    rho_m: 10500, k_th: 429, lam: 480,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#475569", cat: "4d Transition"
+  },
+  Cd: {
+    name: "Cadmium", rho0: 6.83e-8, rhoM: 3.4e-7, Tm: 594, Cp: 232,
+    rho_m: 8650, k_th: 96.6, lam: 470,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#64748b", cat: "4d Transition"
+  },
+  /* ── TRANSITION METALS — 5d ── */
+  Hf: {
+    name: "Hafnium", rho0: 3.31e-7, rhoM: 1.5e-6, Tm: 2506, Cp: 144,
+    rho_m: 13310, k_th: 23, lam: 735,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#5b21b6", cat: "5d Transition"
+  },
+  Ta: {
+    name: "Tantalum", rho0: 1.25e-7, rhoM: 6.2e-7, Tm: 3290, Cp: 140,
+    rho_m: 16654, k_th: 57.5, lam: 613,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#7e22ce", cat: "5d Transition"
   },
   W: {
     name: "Tungsten", rho0: 5.28e-8, rhoM: 2.5e-7, Tm: 3695, Cp: 132,
     rho_m: 19300, k_th: 173, lam: 1026,
     ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
-    Eflash: null, Efsrc: null, color: "#555"
-  },
-  Pt: {
-    name: "Platinum", rho0: 1.06e-7, rhoM: 3.8e-7, Tm: 2041, Cp: 133,
-    rho_m: 21450, k_th: 71.6, lam: 493,
-    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
-    Eflash: null, Efsrc: null, color: "#8aa"
+    Eflash: null, Efsrc: null, color: "#555", cat: "5d Transition"
   },
   Re: {
     name: "Rhenium", rho0: 1.93e-7, rhoM: 9.0e-7, Tm: 3459, Cp: 137,
     rho_m: 21020, k_th: 47.9, lam: 1337,
     ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
-    Eflash: null, Efsrc: null, color: "#6b21a8"
+    Eflash: null, Efsrc: null, color: "#6b21a8", cat: "5d Transition"
+  },
+  Os: {
+    name: "Osmium", rho0: 8.12e-8, rhoM: 5.5e-7, Tm: 3306, Cp: 130,
+    rho_m: 22590, k_th: 87.6, lam: 1258,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#4c1d95", cat: "5d Transition"
+  },
+  Ir: {
+    name: "Iridium", rho0: 4.71e-8, rhoM: 2.8e-7, Tm: 2719, Cp: 131,
+    rho_m: 22560, k_th: 147, lam: 957,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#581c87", cat: "5d Transition"
+  },
+  Pt: {
+    name: "Platinum", rho0: 1.06e-7, rhoM: 3.8e-7, Tm: 2041, Cp: 133,
+    rho_m: 21450, k_th: 71.6, lam: 493,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#8aa", cat: "5d Transition"
+  },
+  Au: {
+    name: "Gold", rho0: 2.21e-8, rhoM: 1.35e-7, Tm: 1337, Cp: 129,
+    rho_m: 19300, k_th: 318, lam: 299,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#eab308", cat: "5d Transition"
+  },
+  /* ── POST-TRANSITION METALS ── */
+  Al: {
+    name: "Aluminum", rho0: 2.65e-8, rhoM: 1.2e-7, Tm: 933, Cp: 897,
+    rho_m: 2700, k_th: 237, lam: 970,
+    ref_jdot: 244, ref_Jloc: 150, ref_t: 25, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#ef4444", cat: "Post-Transition"
+  },
+  Ga: {
+    name: "Gallium", rho0: 1.36e-7, rhoM: 2.6e-7, Tm: 303, Cp: 371,
+    rho_m: 5910, k_th: 40.6, lam: 551,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#f87171", cat: "Post-Transition"
+  },
+  In: {
+    name: "Indium", rho0: 8.37e-8, rhoM: 3.3e-7, Tm: 430, Cp: 233,
+    rho_m: 7310, k_th: 81.8, lam: 237,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#b91c1c", cat: "Post-Transition"
+  },
+  Sn: {
+    name: "Tin", rho0: 1.1e-7, rhoM: 4.8e-7, Tm: 505, Cp: 228,
+    rho_m: 7365, k_th: 66.8, lam: 457,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#78716c", cat: "Post-Transition"
+  },
+  Tl: {
+    name: "Thallium", rho0: 1.5e-7, rhoM: 7.5e-7, Tm: 577, Cp: 129,
+    rho_m: 11850, k_th: 46.1, lam: 214,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#78716c", cat: "Post-Transition"
+  },
+  Pb: {
+    name: "Lead", rho0: 2.08e-7, rhoM: 9.5e-7, Tm: 601, Cp: 129,
+    rho_m: 11340, k_th: 35.3, lam: 210,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#57534e", cat: "Post-Transition"
+  },
+  Bi: {
+    name: "Bismuth", rho0: 1.07e-6, rhoM: 1.3e-6, Tm: 544, Cp: 122,
+    rho_m: 9780, k_th: 7.97, lam: 335,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#44403c", cat: "Post-Transition"
+  },
+  /* ── LANTHANIDES ── */
+  La: {
+    name: "Lanthanum", rho0: 5.7e-7, rhoM: 1.6e-6, Tm: 1193, Cp: 195,
+    rho_m: 6162, k_th: 13.4, lam: 432,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#059669", cat: "Lanthanide"
+  },
+  Ce: {
+    name: "Cerium", rho0: 7.4e-7, rhoM: 1.7e-6, Tm: 1068, Cp: 192,
+    rho_m: 6770, k_th: 11.3, lam: 531,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#10b981", cat: "Lanthanide"
+  },
+  Nd: {
+    name: "Neodymium", rho0: 6.43e-7, rhoM: 1.6e-6, Tm: 1297, Cp: 190,
+    rho_m: 7010, k_th: 16.5, lam: 466,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#047857", cat: "Lanthanide"
+  },
+  Gd: {
+    name: "Gadolinium", rho0: 1.31e-6, rhoM: 2.0e-6, Tm: 1585, Cp: 236,
+    rho_m: 7900, k_th: 10.6, lam: 529,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#065f46", cat: "Lanthanide"
+  },
+  Dy: {
+    name: "Dysprosium", rho0: 9.26e-7, rhoM: 1.8e-6, Tm: 1680, Cp: 170,
+    rho_m: 8550, k_th: 10.7, lam: 613,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#0d9488", cat: "Lanthanide"
+  },
+  Er: {
+    name: "Erbium", rho0: 8.6e-7, rhoM: 1.6e-6, Tm: 1802, Cp: 168,
+    rho_m: 9066, k_th: 14.5, lam: 613,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#0f766e", cat: "Lanthanide"
+  },
+  Lu: {
+    name: "Lutetium", rho0: 5.82e-7, rhoM: 1.2e-6, Tm: 1925, Cp: 154,
+    rho_m: 9841, k_th: 16.4, lam: 607,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#115e59", cat: "Lanthanide"
+  },
+  /* ── ACTINIDES ── */
+  Th: {
+    name: "Thorium", rho0: 1.47e-7, rhoM: 6.7e-7, Tm: 2023, Cp: 113,
+    rho_m: 11720, k_th: 54, lam: 472,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#d946ef", cat: "Actinide"
+  },
+  U: {
+    name: "Uranium", rho0: 2.8e-7, rhoM: 1.2e-6, Tm: 1405, Cp: 116,
+    rho_m: 19050, k_th: 27.5, lam: 572,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#a855f7", cat: "Actinide"
   },
 };
 
-var CHART_METALS = ["Ti", "Cu", "Ni", "Al", "W", "Pt", "Fe", "Re"];
-var TABLE_METALS = ["Ti", "Ni", "Pt", "Fe", "W", "Cu", "Al", "Re"];
+/* Category groupings for UI presentation — periodic-table-inspired layout */
+var METAL_CATEGORIES = {
+  "Alkali": ["Li", "Na", "K"],
+  "Alk. Earth": ["Be", "Mg", "Ca", "Sr", "Ba"],
+  "3d Trans.": ["Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn"],
+  "4d Trans.": ["Y", "Zr", "Nb", "Mo", "Ru", "Rh", "Pd", "Ag", "Cd"],
+  "5d Trans.": ["Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au"],
+  "Post-Trans.": ["Al", "Ga", "In", "Sn", "Tl", "Pb", "Bi"],
+  "Lanthanide": ["La", "Ce", "Nd", "Gd", "Dy", "Er", "Lu"],
+  "Actinide": ["Th", "U"],
+};
+
+/* Full periodic table — standard 18-column IUPAC layout, all 118 elements */
+var PT_ROWS = [
+  ["H", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "He"],
+  ["Li", "Be", null, null, null, null, null, null, null, null, null, null, "B", "C", "N", "O", "F", "Ne"],
+  ["Na", "Mg", null, null, null, null, null, null, null, null, null, null, "Al", "Si", "P", "S", "Cl", "Ar"],
+  ["K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr"],
+  ["Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I", "Xe"],
+  ["Cs", "Ba", "*Ln", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn"],
+  ["Fr", "Ra", "*An", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"],
+];
+var PT_LN = ["La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu"];
+var PT_AN = ["Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"];
+
+/* All metals for the comparison table */
+var ALL_METALS = Object.values(METAL_CATEGORIES).flat();
+
+/* Chart metals: all metals in the database get E(J) curves */
+var CHART_METALS = ALL_METALS;
+var TABLE_METALS = ALL_METALS;
 
 var EXP = [
   { label: "Ti R14", m: "Ti", jdot: 1000, t: 100, w: 6, L: 20, Jloc: 70.3, flash: true },
@@ -262,12 +563,12 @@ export default function ProcessWindowV5(props) {
   var _t = useState(100); var thick = _t[0]; var setThick = _t[1];
   var _w = useState(6); var width = _w[0]; var setWidth = _w[1];
   var _d = useState(250); var diam = _d[0]; var setDiam = _d[1];
-  var _l = useState(20); var gauge = _l[0]; var setGauge = _l[1];
+  var _l = useState(50); var gauge = _l[0]; var setGauge = _l[1];
   var _j = useState(500); var jdot = _j[0]; var setJdot = _j[1];
   var _h = useState(8); var hConv = _h[0]; var setHConv = _h[1];
   var _v = useState(10); var vOff = _v[0]; var setVOff = _v[1];
   var _im = useState(100); var Imax = _im[0]; var setImax = _im[1];
-  var _he = useState(false); var hideExp = _he[0]; var setHideExp = _he[1];
+  var _he = useState(true); var hideExp = _he[0]; var setHideExp = _he[1];
   var _ho = useState(false); var hideOther = _ho[0]; var setHideOther = _ho[1];
 
   var mp = DB[metal];
@@ -411,10 +712,10 @@ export default function ProcessWindowV5(props) {
           background: "linear-gradient(135deg,#1e293b,#475569)",
           WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0
         }}>
-          Metal Flash Process Window v6
+          Flash Process Parameters for Metals
         </h1>
-        <p style={{ fontFamily: FONT_M, fontSize: "0.58rem", color: "#94a3b8", margin: "1px 0 0" }}>
-          fin+clip thermal model | dynamic E(J) | 8 metals | extended ranges
+        <p style={{ fontFamily: FONT_M, fontSize: "0.58rem", color: "#64748b", margin: "1px 0 0" }}>
+          fin+clip thermal model | dynamic E(J) | {ALL_METALS.length} metals | Voltivity DFT Handbook v12
         </p>
         {props.onOpenGuide ? (
           <button onClick={props.onOpenGuide} style={{
@@ -429,42 +730,100 @@ export default function ProcessWindowV5(props) {
           </button>
         ) : null}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "230px 1fr", gap: "0.5rem" }}>
-        {/* LEFT */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
+      {/* ── FULL PERIODIC TABLE SELECTOR ── */}
+      <div style={{
+        background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0",
+        marginBottom: "0.4rem"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{
+              fontSize: "0.54rem", color: "#475569", letterSpacing: "0.1em",
+              textTransform: "uppercase", fontWeight: 600
+            }}>Select Metal ({ALL_METALS.length})</div>
             <label style={{
-              display: "flex", alignItems: "center", gap: 5, cursor: "pointer",
-              fontSize: "0.52rem", color: "#64748b", marginBottom: 4
+              display: "flex", alignItems: "center", gap: 4, cursor: "pointer",
+              fontSize: "0.5rem", color: "#475569"
             }}>
               <input type="checkbox" checked={hideExp}
                 onChange={function () { setHideExp(!hideExp); }}
                 style={{ accentColor: "#e94560", width: 12, height: 12 }} />
-              Hide experimental calibration dataset
+              Hide exp. data
             </label>
             <label style={{
-              display: "flex", alignItems: "center", gap: 5, cursor: "pointer",
-              fontSize: "0.52rem", color: "#64748b", marginBottom: 4
+              display: "flex", alignItems: "center", gap: 4, cursor: "pointer",
+              fontSize: "0.5rem", color: "#475569"
             }}>
               <input type="checkbox" checked={hideOther}
                 onChange={function () { setHideOther(!hideOther); }}
                 style={{ accentColor: "#3b82f6", width: 12, height: 12 }} />
-              Hide non-selected materials from E(J)
+              Hide other E(J)
             </label>
-            <div style={{
-              fontSize: "0.54rem", color: "#64748b", letterSpacing: "0.1em",
-              textTransform: "uppercase", marginBottom: 2
-            }}>Metal</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-              {Object.keys(DB).map(function (k) {
-                return <Chip key={k} active={metal === k} color={DB[k].color}
-                  onClick={function () { setMetal(k); }}>{k}</Chip>;
-              })}
-            </div>
-            <div style={{ fontSize: "0.54rem", color: "#94a3b8", marginTop: 2, fontFamily: FONT_M }}>
-              {"resistivity: " + (mp.rho0 * 1e8).toFixed(1) + " (RT) to " + (mp.rhoM * 1e8).toFixed(0) + " (melt) uOhm-cm | thermal cond: " + mp.k_th.toFixed(0) + " W/mK"}
-            </div>
           </div>
+          <div style={{ fontSize: "0.5rem", color: "#475569", fontFamily: FONT_M, lineHeight: 1.4, textAlign: "right" }}>
+            <span style={{ fontWeight: 700, color: mp.color }}>{mp.name}</span>
+            {" (" + (mp.cat || "") + ") Tm=" + (mp.Tm - 273) + "°C"}
+            {" | ρ: " + (mp.rho0 * 1e8).toFixed(1) + "→" + (mp.rhoM * 1e8).toFixed(0) + " µΩ·cm | k=" + mp.k_th.toFixed(0) + " W/mK | λ=" + mp.lam}
+          </div>
+        </div>
+        {(function () {
+          var CW = 30; var CH = 22; var GAP = 1;
+          var renderCell = function (sym, ci) {
+            if (sym === null) return <div key={ci} style={{ width: CW, height: CH }} />;
+            /* Special lanthanide/actinide placeholder markers */
+            if (sym === "*Ln") return <div key={ci} style={{
+              width: CW, height: CH, fontSize: "0.36rem", fontFamily: FONT_M, display: "flex",
+              alignItems: "center", justifyContent: "center", color: "#94a3b8", fontStyle: "italic",
+              background: "#f8fafc", borderRadius: 2, border: "1px dashed #cbd5e1"
+            }}>Ln▾</div>;
+            if (sym === "*An") return <div key={ci} style={{
+              width: CW, height: CH, fontSize: "0.36rem", fontFamily: FONT_M, display: "flex",
+              alignItems: "center", justifyContent: "center", color: "#94a3b8", fontStyle: "italic",
+              background: "#f8fafc", borderRadius: 2, border: "1px dashed #cbd5e1"
+            }}>An▾</div>;
+            /* Element in our database — clickable */
+            if (DB[sym]) return <Chip key={ci} active={metal === sym} color={DB[sym].color}
+              onClick={function () { setMetal(sym); }}>{sym}</Chip>;
+            /* Element NOT in database — greyed out */
+            return <div key={ci} style={{
+              width: CW, height: CH, fontSize: "0.5rem", fontFamily: FONT_S,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              borderRadius: 3, color: "#c0c8d4", background: "#f1f5f9",
+              border: "1px solid #e2e8f0", cursor: "default",
+              userSelect: "none"
+            }}>{sym}</div>;
+          };
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: GAP, alignItems: "center" }}>
+              {/* Main 7 rows */}
+              {PT_ROWS.map(function (row, ri) {
+                return (
+                  <div key={ri} style={{ display: "flex", gap: GAP }}>
+                    {row.map(renderCell)}
+                  </div>
+                );
+              })}
+              {/* Spacer */}
+              <div style={{ height: 3 }} />
+              {/* Lanthanide row */}
+              <div style={{ display: "flex", gap: GAP }}>
+                <div style={{ width: CW * 2 + GAP, height: CH, display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 3, fontSize: "0.4rem", color: "#94a3b8", fontFamily: FONT_M, fontWeight: 600 }}>Ln</div>
+                {PT_LN.map(renderCell)}
+                <div style={{ width: CW, height: CH }} />
+              </div>
+              {/* Actinide row */}
+              <div style={{ display: "flex", gap: GAP }}>
+                <div style={{ width: CW * 2 + GAP, height: CH, display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 3, fontSize: "0.4rem", color: "#94a3b8", fontFamily: FONT_M, fontWeight: 600 }}>An</div>
+                {PT_AN.map(renderCell)}
+                <div style={{ width: CW, height: CH }} />
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: "0.5rem" }}>
+        {/* LEFT */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
             <div style={{ display: "flex", gap: 2, marginBottom: 3 }}>
               <Chip active={geo === "foil"} color="#e94560"
@@ -489,14 +848,42 @@ export default function ProcessWindowV5(props) {
           </div>
           <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
             <Sl label="Ramp rate" value={jdot} set={setJdot}
-              min={50} max={50000} step={50} unit="A/mm2/min" color="#3b82f6" />
+              min={50} max={50000} step={50} unit="A/mm²/min" color="#3b82f6" />
             <Sl label="h (convection)" value={hConv} set={setHConv}
-              min={2} max={200} step={1} unit="W/m2K" color="#64748b" />
+              min={2} max={200} step={1} unit="W/m²K" color="#475569" />
             <Sl label="I_max (supply)" value={Imax} set={setImax}
               min={10} max={500} step={5} unit="A" color="#ef4444" />
             <Sl label="V offset" value={vOff} set={setVOff}
-              min={0} max={50} step={0.5} unit="mV" color="#64748b"
+              min={0} max={50} step={0.5} unit="mV" color="#475569"
               fmt={function (v) { return v.toFixed(1); }} />
+          </div>
+          {/* Power Supply Settings box */}
+          <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
+            <div style={{
+              fontSize: "0.52rem", color: "#475569", letterSpacing: "0.08em",
+              textTransform: "uppercase", marginBottom: 3, fontWeight: 600
+            }}>Power Supply Settings</div>
+            {(function () {
+              var Amm2 = geo === "wire" ? (Math.PI / 4 * Math.pow(diam / 1000, 2)) : ((thick / 1000) * width);
+              var dIdt_Amin = jdot * Amm2;  /* A/min */
+              var dIdt_As = dIdt_Amin / 60;  /* A/s */
+              var Ionset = uc.Jflash * Amm2;
+              var Iloc = uc.Jloc * Amm2;
+              var tOnset_s = Ionset > 0 ? Ionset / dIdt_As : 0;
+              var tLOC_s = Iloc > 0 ? Iloc / dIdt_As : 0;
+              return (
+                <div style={{ fontSize: "0.56rem", fontFamily: FONT_M, lineHeight: 1.7 }}>
+                  <InfoRow label="Cross-section A" val={Amm2.toFixed(3)} unit="mm²" />
+                  <InfoRow label="Current ramp dI/dt" val={dIdt_Amin.toFixed(1)} unit="A/min" hl />
+                  <InfoRow label="Current ramp dI/dt" val={dIdt_As.toFixed(2)} unit="A/s" />
+                  <InfoRow label="I at flash onset" val={Ionset.toFixed(1)} unit="A" />
+                  <InfoRow label="I at LOC" val={Iloc.toFixed(1)} unit="A" />
+                  <InfoRow label="Time to flash onset" val={tOnset_s > 0 ? tOnset_s.toFixed(1) : "--"} unit={tOnset_s > 0 ? "s" : ""} />
+                  <InfoRow label="Time to LOC" val={tLOC_s > 0 ? tLOC_s.toFixed(1) : "--"} unit={tLOC_s > 0 ? "s" : ""} />
+                  <InfoRow label="Max supply current" val={Imax.toFixed(0)} unit="A" dim />
+                </div>
+              );
+            })()}
           </div>
           <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
             <div style={{
@@ -535,24 +922,21 @@ export default function ProcessWindowV5(props) {
           </div>
           <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
             <div style={{
-              fontSize: "0.52rem", color: "#64748b", letterSpacing: "0.08em",
-              textTransform: "uppercase", marginBottom: 3
-            }}>Known Flash Thresholds</div>
-            <div style={{ fontSize: "0.56rem", fontFamily: FONT_M, lineHeight: 1.6 }}>
+              fontSize: "0.52rem", color: "#475569", letterSpacing: "0.08em",
+              textTransform: "uppercase", marginBottom: 3, fontWeight: 600
+            }}>Flash Thresholds (E_flash = λ / r) at L={gauge}mm</div>
+            <div style={{ fontSize: "0.48rem", fontFamily: FONT_M, lineHeight: 1.5, display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0 6px" }}>
               {TABLE_METALS.map(function (k) {
                 var m = DB[k];
                 var ef = flashThreshold(m.lam, gauge);
                 return (
-                  <div key={k}>
+                  <div key={k} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     <span style={{ color: m.color, fontWeight: 700 }}>{k}</span>
-                    {": "}<b>{ef.toFixed(2)}</b>{" V/cm "}
-                    <span style={{ color: "#94a3b8", fontSize: "0.46rem" }}>{"(voltivity \u03BB=" + m.lam + ")"}</span>
+                    {" "}<b>{ef.toFixed(1)}</b>
+                    <span style={{ color: "#64748b", fontSize: "0.42rem" }}>{" λ=" + m.lam}</span>
                   </div>
                 );
               })}
-              <div style={{ color: "#94a3b8", fontSize: "0.48rem", marginTop: 2 }}>
-                {"E_flash = \u03BB / r. \u03BB (voltivity) is a material property. r = \u03BB / E_flash. Calibrated from Ti at L=20mm."}
-              </div>
             </div>
           </div>
         </div>
@@ -739,21 +1123,20 @@ export default function ProcessWindowV5(props) {
               </LineChart>
             </ResponsiveContainer>
             <div style={{
-              display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap",
-              fontSize: "0.52rem", fontFamily: FONT_M, color: "#475569"
+              display: "flex", gap: 5, justifyContent: "center", flexWrap: "wrap",
+              fontSize: "0.44rem", fontFamily: FONT_M, color: "#475569"
             }}>
               {CHART_METALS.map(function (m) {
                 var c = curves[m];
                 if (!c) return null;
                 return (
                   <span key={m} style={{ color: DB[m].color }}>
-                    {m + ": E_ss=" + c.Emax.toFixed(2) + " E_pk=" + c.Epeak.toFixed(2)}
+                    {m + " " + c.Emax.toFixed(2)}
                   </span>
                 );
               })}
             </div>
           </div>
-          {/* Table */}
           <div style={{
             background: "#ffffff", borderRadius: 8, padding: "5px 8px",
             border: "1px solid #e2e8f0"
@@ -762,86 +1145,88 @@ export default function ProcessWindowV5(props) {
               fontSize: "0.52rem", fontFamily: FONT_M, color: "#64748b",
               textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2
             }}>
-              {"All metals at " + geoStr}
+              {"All " + TABLE_METALS.length + " metals at " + geoStr}
             </div>
-            <table style={{
-              width: "100%", fontSize: "0.62rem", fontFamily: FONT_M, color: "#334155",
-              borderCollapse: "collapse"
-            }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #cbd5e1", color: "#64748b", fontSize: "0.54rem" }}>
-                  <th style={{ textAlign: "left", padding: "1px 2px" }}>{""}</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>{"\u03BB"}</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>{"r (\u00B5m)"}</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>{"rho(Tm)"}</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>{"k(th)"}</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>J_flash</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>J_LOC</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>E_max</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>Clip%</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>{"E_pk"}</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>{"E_flash"}</th>
-                  <th style={{ textAlign: "right", padding: "1px 2px" }}>Gap</th>
-                  <th style={{ textAlign: "center", padding: "1px 2px" }}>Outcome</th>
-                </tr>
-              </thead>
-              <tbody>
-                {TABLE_METALS.map(function (k) {
-                  var m = DB[k];
-                  var est = estimateJloc(k, geo, thick, width, dum, gauge, jdot, hConv);
-                  var E = m.rhoM * est.Jloc * 1e6 / 100;
-                  var clip = est.cool.qTot > 0 ? est.cool.qClip / est.cool.qTot * 100 : 0;
-                  var tr_res = transientEpeak(m, thick, width, dum, gauge, Imax, jdot, geo === "wire");
-                  var tr_E = tr_res.Epeak;
-                  var ef = flashThreshold(m.lam, gauge);
-                  var Jfl = findJonset(m, est.Jloc, ef);
-                  var rEst = E > 0 ? m.lam / E : 0;
-                  var Ebest = Math.max(E, tr_E);
-                  var gap = ef != null ? (Ebest / ef) : null;
-                  var ok = ef != null ? gap > 0.8 : Ebest > 0.5;
-                  var mTmC = m.Tm - 273;
-                  var mTonset = Jfl > 0 && est.Jloc > 0
-                    ? 25 + (mTmC - 25) * Math.pow(Math.min(Jfl / est.Jloc, 1), 1.5)
-                    : 0;
-                  var mWillLOC = Jfl > 0 && Jfl < est.Jloc;
-                  return (
-                    <tr key={k} style={{
-                      borderBottom: "1px solid rgba(226,232,240,0.7)",
-                      background: k === metal ? "rgba(59,130,246,0.08)" : "transparent"
-                    }}>
-                      <td style={{ padding: "1px 2px", color: m.color, fontWeight: 700 }}>{k}</td>
-                      <td style={{ textAlign: "right", color: "#64748b" }}>{m.lam}</td>
-                      <td style={{ textAlign: "right", color: "#94a3b8" }}>{rEst.toFixed(0)}</td>
-                      <td style={{ textAlign: "right" }}>{(m.rhoM * 1e8).toFixed(0)}</td>
-                      <td style={{ textAlign: "right", color: "#94a3b8" }}>{m.k_th.toFixed(0)}</td>
-                      <td style={{ textAlign: "right", color: "#0284c7" }}>{Jfl.toFixed(0)}</td>
-                      <td style={{ textAlign: "right" }}>{est.Jloc.toFixed(0)}</td>
-                      <td style={{
-                        textAlign: "right", fontWeight: 700,
-                        color: ok ? "#16a34a" : E > 0.1 ? "#d97706" : "#dc2626"
-                      }}>{E.toFixed(3)}</td>
-                      <td style={{ textAlign: "right", color: "#94a3b8" }}>{clip.toFixed(0)}</td>
-                      <td style={{ textAlign: "right", color: "#7c3aed", fontWeight: 600 }}>{tr_E.toFixed(2)}</td>
-                      <td style={{ textAlign: "right", color: ef != null ? "#d97706" : "#cbd5e1" }}>
-                        {ef != null ? ef.toFixed(1) : "?"}</td>
-                      <td style={{
-                        textAlign: "right", fontSize: "0.54rem",
-                        color: gap != null ? (gap > 1 ? "#16a34a" : gap > 0.5 ? "#d97706" : "#dc2626") : "#cbd5e1"
+            <div style={{ maxHeight: 500, overflowY: "auto" }}>
+              <table style={{
+                width: "100%", fontSize: "0.56rem", fontFamily: FONT_M, color: "#334155",
+                borderCollapse: "collapse"
+              }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #cbd5e1", color: "#64748b", fontSize: "0.54rem" }}>
+                    <th style={{ textAlign: "left", padding: "1px 2px" }}>{""}</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>{"\u03BB"}</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>{"r (\u00B5m)"}</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>{"rho(Tm)"}</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>{"k(th)"}</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>J_flash</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>J_LOC</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>E_max</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>Clip%</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>{"E_pk"}</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>{"E_flash"}</th>
+                    <th style={{ textAlign: "right", padding: "1px 2px" }}>Gap</th>
+                    <th style={{ textAlign: "center", padding: "1px 2px" }}>Outcome</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {TABLE_METALS.map(function (k) {
+                    var m = DB[k];
+                    var est = estimateJloc(k, geo, thick, width, dum, gauge, jdot, hConv);
+                    var E = m.rhoM * est.Jloc * 1e6 / 100;
+                    var clip = est.cool.qTot > 0 ? est.cool.qClip / est.cool.qTot * 100 : 0;
+                    var tr_res = transientEpeak(m, thick, width, dum, gauge, Imax, jdot, geo === "wire");
+                    var tr_E = tr_res.Epeak;
+                    var ef = flashThreshold(m.lam, gauge);
+                    var Jfl = findJonset(m, est.Jloc, ef);
+                    var rEst = E > 0 ? m.lam / E : 0;
+                    var Ebest = Math.max(E, tr_E);
+                    var gap = ef != null ? (Ebest / ef) : null;
+                    var ok = ef != null ? gap > 0.8 : Ebest > 0.5;
+                    var mTmC = m.Tm - 273;
+                    var mTonset = Jfl > 0 && est.Jloc > 0
+                      ? 25 + (mTmC - 25) * Math.pow(Math.min(Jfl / est.Jloc, 1), 1.5)
+                      : 0;
+                    var mWillLOC = Jfl > 0 && Jfl < est.Jloc;
+                    return (
+                      <tr key={k} style={{
+                        borderBottom: "1px solid rgba(226,232,240,0.7)",
+                        background: k === metal ? "rgba(59,130,246,0.08)" : "transparent"
                       }}>
-                        {gap != null ? (gap.toFixed(1) + "x") : "--"}</td>
-                      <td style={{
-                        textAlign: "center", fontSize: "0.5rem", fontWeight: 700,
-                        color: mWillLOC ? "#16a34a" : "#dc2626"
-                      }}>
-                        {mWillLOC
-                          ? "LOC " + mTonset.toFixed(0) + "°"
-                          : "MELT " + mTmC.toFixed(0) + "°"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <td style={{ padding: "1px 2px", color: m.color, fontWeight: 700 }}>{k}</td>
+                        <td style={{ textAlign: "right", color: "#475569" }}>{m.lam}</td>
+                        <td style={{ textAlign: "right", color: "#64748b" }}>{rEst.toFixed(0)}</td>
+                        <td style={{ textAlign: "right" }}>{(m.rhoM * 1e8).toFixed(0)}</td>
+                        <td style={{ textAlign: "right", color: "#94a3b8" }}>{m.k_th.toFixed(0)}</td>
+                        <td style={{ textAlign: "right", color: "#0284c7" }}>{Jfl.toFixed(0)}</td>
+                        <td style={{ textAlign: "right" }}>{est.Jloc.toFixed(0)}</td>
+                        <td style={{
+                          textAlign: "right", fontWeight: 700,
+                          color: ok ? "#16a34a" : E > 0.1 ? "#d97706" : "#dc2626"
+                        }}>{E.toFixed(3)}</td>
+                        <td style={{ textAlign: "right", color: "#64748b" }}>{clip.toFixed(0)}</td>
+                        <td style={{ textAlign: "right", color: "#6d28d9", fontWeight: 600 }}>{tr_E.toFixed(2)}</td>
+                        <td style={{ textAlign: "right", color: ef != null ? "#d97706" : "#cbd5e1" }}>
+                          {ef != null ? ef.toFixed(1) : "?"}</td>
+                        <td style={{
+                          textAlign: "right", fontSize: "0.54rem",
+                          color: gap != null ? (gap > 1 ? "#16a34a" : gap > 0.5 ? "#d97706" : "#dc2626") : "#cbd5e1"
+                        }}>
+                          {gap != null ? (gap.toFixed(1) + "x") : "--"}</td>
+                        <td style={{
+                          textAlign: "center", fontSize: "0.5rem", fontWeight: 700,
+                          color: mWillLOC ? "#16a34a" : "#dc2626"
+                        }}>
+                          {mWillLOC
+                            ? "LOC " + mTonset.toFixed(0) + "°"
+                            : "MELT " + mTmC.toFixed(0) + "°"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
           {/* Formulas & Definitions — inside RIGHT column, under table */}
           <div style={{
@@ -981,9 +1366,9 @@ export default function ProcessWindowV5(props) {
       </div>
       <div style={{
         textAlign: "center", marginTop: "0.3rem", fontSize: "0.5rem",
-        fontFamily: FONT_M, color: "#94a3b8"
+        fontFamily: FONT_M, color: "#64748b"
       }}>
-        v6 -- 8 metals | fin+clip model | t 5-1000um, w 0.25-25mm, L 2-200mm, jdot 50-50k, h 2-200
+        v8 -- {ALL_METALS.length} metals (Voltivity DFT Handbook v12) | fin+clip model | t 5-1000um, w 0.25-25mm, L 2-200mm, jdot 50-50k, h 2-200
       </div>
     </div>
   );
