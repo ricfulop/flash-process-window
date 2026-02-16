@@ -14,7 +14,7 @@ This calculator helps experimentalists determine whether a given metal, geometry
 
 ## Features
 
-- **51 pure metals** from the Voltivity DFT Handbook v12, spanning alkali metals, alkaline earths, 3d/4d/5d transition metals, post-transition metals, lanthanides, and actinides
+- **51 pure metals** spanning alkali metals, alkaline earths, 3d/4d/5d transition metals, post-transition metals, lanthanides, and actinides
 - **Full periodic table selector** — standard 18-column IUPAC layout with all 118 elements; non-database elements greyed out
 - **Process Window chart** — Emax vs. Normalized Ramp (NR) scatter plot showing your design point relative to the adiabatic and cooling-limited regimes
 - **E(J) curves** — electric field vs. current density for all metals simultaneously, with flash onset and LOC markers
