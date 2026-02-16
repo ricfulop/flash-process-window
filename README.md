@@ -8,7 +8,7 @@ An interactive web application for computing and visualizing the **flash process
 
 ## What is Flash?
 
-Flash is a rapid, non-equilibrium phenomenon in which a solid metal specimen under an applied electric field undergoes an abrupt increase in power dissipation, enabling ultra-fast Joule heating. Unlike conventional sintering (which applies to ceramics and powders), flash in solid metals occurs when the electric field exceeds a material-specific threshold — the **voltivity** (λ) — triggering phonon-softened defect nucleation within a coherence length *r*.
+Flash is a rapid, non-equilibrium phenomenon in which a solid metal specimen under an applied electric field enters a defect mediated metastable state with emerging properties like superdiffusion. Unlike conventional sintering (which applies to ceramics and powders), flash in solid metals occurs when the electric field exceeds a material-specific threshold — the **voltivity** (λ) — triggering phonon-softened defect nucleation within a coherence length *r*.
 
 This calculator helps experimentalists determine whether a given metal, geometry, and ramp rate will reach flash onset before the specimen melts.
 
