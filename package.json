@@ -1,7 +1,7 @@
 {
   "name": "flash-process-window",
-  "private": true,
-  "version": "0.0.0",
+  "private": false,
+  "version": "8.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
