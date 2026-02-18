@@ -606,6 +606,177 @@ function geoAP(geo, t_um, w_mm, d_um, tubeID_mm, tubeWall_um) {
   return { A: A, P: P };
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   GAS-DEPENDENT CONVECTIVE + RADIATIVE COOLING MODEL
+   Per SPEC-gas-cooling-model.md
+   h_total = h_conv(T, P, gas) + h_rad(T, ε)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var BOLTZ = 1.38064852e-23;    /* Boltzmann constant J/K */
+var R_GAS = 8.314;             /* universal gas constant J/(mol·K) */
+var SIGMA_SB = 5.670374419e-8; /* Stefan-Boltzmann constant W/m²·K⁴ */
+var G_ACC = 9.81;              /* gravitational accel m/s² */
+
+/* Pure gas properties */
+var PURE_GAS = {
+  N2: {
+    M: 0.028,        /* kg/mol */
+    Cp: 1040,         /* J/kg·K (approx constant) */
+    mu_ref: 1.79e-5,  /* Pa·s at 300K */
+    T_ref: 300,
+    mu_exp: 0.7,      /* μ power-law exponent */
+    d_mol: 3.64e-10,  /* molecular diameter m */
+    /* k(T) = k0 + k1*(T-300) — linear fit 300–1200K */
+    k0: 0.0258, k1: 5.58e-5
+  },
+  H2: {
+    M: 0.002016, Cp: 14300, mu_ref: 0.89e-5, T_ref: 300, mu_exp: 0.7,
+    d_mol: 2.71e-10,
+    k0: 0.182, k1: 3.30e-4
+  },
+  Ar: {
+    M: 0.03995, Cp: 520, mu_ref: 2.27e-5, T_ref: 300, mu_exp: 0.7,
+    d_mol: 3.40e-10,
+    k0: 0.018, k1: 3.80e-5
+  }
+};
+
+/* Named gas atmospheres */
+var GASES = {
+  forming: { label: "Forming Gas (95N₂/5H₂)", comp: { N2: 0.95, H2: 0.05 } },
+  argon: { label: "Argon", comp: { Ar: 1.0 } },
+  hydrogen: { label: "Hydrogen (H₂)", comp: { H2: 1.0 } },
+  nitrogen: { label: "Nitrogen (N₂)", comp: { N2: 1.0 } }
+};
+
+/* Compute temperature-dependent gas properties for a named gas mixture */
+function gasMixProps(gasKey, T_film) {
+  var gas = GASES[gasKey] || GASES.forming;
+  var comp = gas.comp;
+  var k_mix = 0, mu_mix = 0, Cp_num = 0, M_mix = 0, d_mix = 0;
+
+  var species = Object.keys(comp);
+  for (var i = 0; i < species.length; i++) {
+    var sp = species[i];
+    var x = comp[sp];
+    var pg = PURE_GAS[sp];
+    /* thermal conductivity k(T) */
+    var k_T = pg.k0 + pg.k1 * (T_film - 300);
+    /* viscosity μ(T) = μ_ref × (T/T_ref)^0.7 */
+    var mu_T = pg.mu_ref * Math.pow(T_film / pg.T_ref, pg.mu_exp);
+    k_mix += x * k_T;
+    mu_mix += x * mu_T;
+    Cp_num += x * pg.M * pg.Cp;
+    M_mix += x * pg.M;
+    d_mix += x * pg.d_mol;
+  }
+  var Cp_mix = Cp_num / M_mix;
+  var Pr = mu_mix * Cp_mix / k_mix;  /* Prandtl number */
+  return { k: k_mix, mu: mu_mix, Cp: Cp_mix, M: M_mix, Pr: Pr, d_mol: d_mix };
+}
+
+/* Mean free path λ = k_B·T / (√2·π·d²·P) */
+function meanFreePath(d_mol, T, P_Pa) {
+  if (P_Pa < 0.001) P_Pa = 0.001;
+  return BOLTZ * T / (Math.sqrt(2) * Math.PI * d_mol * d_mol * P_Pa);
+}
+
+/* Churchill-Chu natural convection for horizontal cylinder
+   with pressure-dependent regime transitions */
+function computeHconv(gasKey, D_char, T_s, T_w, P_Pa) {
+  if (D_char < 1e-6) D_char = 1e-6;
+  if (T_s <= T_w) return 0;
+  var T_film = (T_s + T_w) / 2;
+  var gp = gasMixProps(gasKey, T_film);
+  var dT = T_s - T_w;
+
+  /* Gas density at pressure: ρ = P·M / (R·T) */
+  var rho = P_Pa * gp.M / (R_GAS * T_film);
+  if (rho < 1e-10) return 0;
+
+  /* Kinematic viscosity & thermal diffusivity */
+  var nu = gp.mu / rho;                   /* m²/s */
+  var alpha = gp.k / (rho * gp.Cp);       /* m²/s */
+
+  /* Knudsen number */
+  var mfp = meanFreePath(gp.d_mol, T_film, P_Pa);
+  var Kn = mfp / D_char;
+
+  /* Free molecular regime — negligible gas cooling */
+  if (Kn > 0.1) return 0;
+
+  /* Effective conductivity in slip regime */
+  var k_eff = gp.k;
+  if (Kn > 0.01) {
+    k_eff = gp.k / (1 + 2 * Kn);
+  }
+
+  /* Rayleigh number: Ra = g·β·ΔT·D³ / (ν·α), where β = 1/T_film for ideal gas */
+  var beta = 1.0 / T_film;
+  var Ra = G_ACC * beta * dT * D_char * D_char * D_char / (nu * alpha);
+  if (Ra < 0) Ra = 0;
+
+  /* Low Ra — pure conduction limit: Nu ≈ 2 for cylinder */
+  if (Ra < 1) {
+    return 2 * k_eff / D_char;
+  }
+
+  /* Churchill-Chu correlation: Nu = {0.60 + 0.387 × [Ra·f(Pr)]^(1/6)}² */
+  var fPr = Math.pow(1 + Math.pow(0.559 / gp.Pr, 9.0 / 16), -16.0 / 9);
+  var Nu = Math.pow(0.60 + 0.387 * Math.pow(Ra * fPr, 1.0 / 6), 2);
+
+  return Nu * k_eff / D_char;
+}
+
+/* Linearized radiation: h_rad = ε·σ·(T_s² + T_w²)·(T_s + T_w) */
+function computeHrad(T_s, T_w, emissivity) {
+  if (T_s <= T_w || emissivity <= 0) return 0;
+  return emissivity * SIGMA_SB * (T_s * T_s + T_w * T_w) * (T_s + T_w);
+}
+
+/* Emissivity lookup (typical values at 800–1200K elevated temperature) */
+var EMISS_DB = {
+  W: 0.20, Mo: 0.20, Nb: 0.20, Ta: 0.20, Re: 0.25,
+  Ti: 0.40, Zr: 0.40, Hf: 0.35, V: 0.35,
+  Ni: 0.30, Co: 0.30, Fe: 0.60, Cr: 0.35, Mn: 0.50,
+  Cu: 0.20, Ag: 0.10, Au: 0.05, Pt: 0.10, Ir: 0.20, Rh: 0.15, Pd: 0.15,
+  Al: 0.12, Ga: 0.20, In: 0.15, Sn: 0.20, Pb: 0.25, Bi: 0.30, Tl: 0.20,
+  Zn: 0.25, Cd: 0.25, Sc: 0.35, Y: 0.35, Ru: 0.25, Os: 0.25,
+  Mg: 0.20, Ca: 0.30, Sr: 0.30, Ba: 0.30,
+  Li: 0.20, Na: 0.20, K: 0.20,
+  La: 0.35, Ce: 0.35, Nd: 0.35, Gd: 0.35, Dy: 0.35, Er: 0.35, Lu: 0.35,
+  Th: 0.40, U: 0.40,
+  /* Alloys */
+  "304SS": 0.60, "316SS": 0.60, "316LSS": 0.60, "310SS": 0.60, "Duplex2205": 0.60,
+  IN718: 0.35, IN625: 0.35, HasX: 0.35, Wasp: 0.35, H230: 0.35, Rene41: 0.35,
+  Ti64: 0.40, Ti6242: 0.40, CPTi2: 0.40, B21S: 0.40,
+  Al6061: 0.12, Al7075: 0.12, Al2024: 0.12, Al5083: 0.12,
+  SAC305: 0.20, SAC387: 0.20, SnPb: 0.25,
+  Cantor: 0.40, CCFN: 0.40, ACCFN: 0.40, TZHNT: 0.30,
+  Brass: 0.25, Bronze: 0.30,
+  NiTi: 0.35, Kovar: 0.50, AZ31: 0.20
+};
+function getEmissivity(metalKey) { return EMISS_DB[metalKey] || 0.40; }
+
+/* Main entry: compute total effective h */
+function computeHtotal(gasKey, P_torr, T_s, T_w, D_char, emissivity) {
+  var P_Pa = P_torr * 133.322;  /* 1 torr = 133.322 Pa */
+  var hc = computeHconv(gasKey, D_char, T_s, T_w, P_Pa);
+  var hr = computeHrad(T_s, T_w, emissivity);
+  return { h_conv: hc, h_rad: hr, h_total: hc + hr };
+}
+
+/* Characteristic length for convection given geometry */
+function geoDchar(geo, t_um, d_um, tubeID_mm, tubeWall_um) {
+  if (geo === "wire") return (d_um || 250) * 1e-6;
+  if (geo === "tube") {
+    var id_m = (tubeID_mm || 1) / 1000;
+    var wall_m = (tubeWall_um || 50) * 1e-6;
+    return id_m + 2 * wall_m;  /* outer diameter */
+  }
+  return 2 * (t_um || 100) * 1e-6;  /* foil: 2×thickness */
+}
+
 function finCooling(mp, geo, t_um, w_mm, d_um, L_mm, h, tubeID_mm, tubeWall_um) {
   var Lm = L_mm / 1000;
   var g = geoAP(geo, t_um, w_mm, d_um, tubeID_mm, tubeWall_um);
@@ -790,17 +961,30 @@ export default function ProcessWindowV5(props) {
   var _tw = useState(200); var tubeWall = _tw[0]; var setTubeWall = _tw[1];
   var _l = useState(50); var gauge = _l[0]; var setGauge = _l[1];
   var _j = useState(500); var jdot = _j[0]; var setJdot = _j[1];
-  var _h = useState(8); var hConv = _h[0]; var setHConv = _h[1];
   var _v = useState(10); var vOff = _v[0]; var setVOff = _v[1];
   var _im = useState(100); var Imax = _im[0]; var setImax = _im[1];
   var _he = useState(true); var hideExp = _he[0]; var setHideExp = _he[1];
   var _ho = useState(false); var hideOther = _ho[0]; var setHideOther = _ho[1];
+  /* Gas cooling model state */
+  var _gas = useState("forming"); var gasAtm = _gas[0]; var setGasAtm = _gas[1];
+  var _pr = useState(760); var chamberP = _pr[0]; var setChamberP = _pr[1];
+  var _em = useState(-1); var emissOvr = _em[0]; var setEmissOvr = _em[1]; /* -1 = auto */
 
   var mp = DB[metal];
   var dum = geo === "wire" ? diam : 0;
 
+  /* Compute effective h from gas model at melting temperature */
+  var hInfo = useMemo(function () {
+    var Dch = geoDchar(geo, thick, dum, tubeID, tubeWall);
+    var eps = emissOvr >= 0 ? emissOvr : getEmissivity(metal);
+    var T_s = mp.Tm;  /* evaluate at specimen melting point (LOC condition) */
+    var T_w = 300;     /* wall/ambient temperature */
+    return computeHtotal(gasAtm, chamberP, T_s, T_w, Dch, eps);
+  }, [gasAtm, chamberP, emissOvr, metal, mp, geo, thick, dum, tubeID, tubeWall]);
+  var hEff = hInfo.h_total;
+
   var uc = useMemo(function () {
-    var est = estimateJloc(metal, geo, thick, width, dum, gauge, jdot, hConv, tubeID, tubeWall);
+    var est = estimateJloc(metal, geo, thick, width, dum, gauge, jdot, hEff, tubeID, tubeWall);
     var Jloc = est.Jloc;
     var Emax = mp.rhoM * Jloc * 1e6 / 100;
     var tr = Jloc / Math.max(jdot / 60, 0.001);
@@ -830,12 +1014,12 @@ export default function ProcessWindowV5(props) {
       I: I, Ionset: Ionset, Amm2: Amm2, s10: s10, R0: R0, Jss: est.Jss, clipPct: clipPct,
       Tonset: Tonset, flashWin: flashWin, willLOC: willLOC, TmC: TmC
     };
-  }, [metal, geo, thick, width, diam, gauge, jdot, hConv, vOff, mp, dum, Imax, tubeID, tubeWall]);
+  }, [metal, geo, thick, width, diam, gauge, jdot, hEff, vOff, mp, dum, Imax, tubeID, tubeWall]);
 
   var curves = useMemo(function () {
     var c = {};
     CHART_METALS.forEach(function (m) {
-      var est = estimateJloc(m, geo, thick, width, dum, gauge, jdot, hConv, tubeID, tubeWall);
+      var est = estimateJloc(m, geo, thick, width, dum, gauge, jdot, hEff, tubeID, tubeWall);
       var pts = buildEJ(m, est.Jloc, 100);
       var tr = transientEpeak(DB[m], geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall);
       var mEf = flashThreshold(DB[m].lam, gauge);
@@ -843,7 +1027,7 @@ export default function ProcessWindowV5(props) {
       c[m] = { pts: pts, Jloc: est.Jloc, Emax: DB[m].rhoM * est.Jloc * 1e6 / 100, Epeak: tr.Epeak, Jmelt: tr.Jmelt, Ef: mEf, Jflash: mJflash };
     });
     return c;
-  }, [geo, thick, width, diam, gauge, jdot, hConv, dum, Imax, tubeID, tubeWall]);
+  }, [geo, thick, width, diam, gauge, jdot, hEff, dum, Imax, tubeID, tubeWall]);
 
   var ejData = useMemo(function () {
     var map = {};
@@ -871,7 +1055,7 @@ export default function ProcessWindowV5(props) {
   var scatter = useMemo(function () {
     var pts = EXP.map(function (e) {
       var emp = DB[e.m];
-      var cl = finCooling(emp, "foil", e.t, e.w, 0, e.L, hConv, 0, 0);
+      var cl = finCooling(emp, "foil", e.t, e.w, 0, e.L, hEff, 0, 0);
       var tr = e.Jloc / (e.jdot / 60);
       return Object.assign({}, e, { NR: tr / cl.tau, Emax: emp.rhoM * e.Jloc * 1e6 / 100 });
     });
@@ -882,7 +1066,7 @@ export default function ProcessWindowV5(props) {
       NR: uc.NR, Emax: Ebest, flash: isFlash, isUser: true
     });
     return pts;
-  }, [metal, jdot, hConv, uc, mp, Imax]);
+  }, [metal, jdot, hEff, uc, mp, Imax]);
 
   var fa = useMemo(function () {
     var E = Math.max(uc.Emax, uc.Epeak);
@@ -1109,18 +1293,75 @@ export default function ProcessWindowV5(props) {
               </div>
             )}
             <Sl label="Gauge length L" value={gauge} set={setGauge}
-              min={2} max={200} step={1} unit="mm" color="#f59e0b" />
+              min={2} max={400} step={1} unit="mm" color="#f59e0b" />
           </div>
           <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
             <Sl label="Ramp rate" value={jdot} set={setJdot}
-              min={50} max={50000} step={50} unit="A/mm²/min" color="#3b82f6" />
-            <Sl label="h (convection)" value={hConv} set={setHConv}
-              min={2} max={200} step={1} unit="W/m²K" color="#475569" />
+              min={10} max={50000} step={10} unit="A/mm²/min" color="#3b82f6" />
             <Sl label="I_max (supply)" value={Imax} set={setImax}
               min={10} max={500} step={5} unit="A" color="#ef4444" />
             <Sl label="V offset" value={vOff} set={setVOff}
               min={0} max={50} step={0.5} unit="mV" color="#475569"
               fmt={function (v) { return v.toFixed(1); }} />
+          </div>
+          {/* Chamber Environment */}
+          <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
+            <div style={{
+              fontSize: "0.52rem", color: "#475569", letterSpacing: "0.08em",
+              textTransform: "uppercase", marginBottom: 3, fontWeight: 600
+            }}>Chamber Environment</div>
+            {/* Gas selector */}
+            <div style={{ display: "flex", gap: 2, marginBottom: 4, flexWrap: "wrap" }}>
+              {Object.keys(GASES).map(function (gk) {
+                return <Chip key={gk} active={gasAtm === gk} color="#0891b2"
+                  onClick={function () { setGasAtm(gk); }}>{GASES[gk].label}</Chip>;
+              })}
+            </div>
+            {/* Pressure — log slider */}
+            <Sl label="Pressure" value={chamberP} set={setChamberP}
+              min={0.1} max={760} step={0.1} unit="torr" color="#0891b2"
+              fmt={function (v) { return v >= 1 ? Math.round(v) : v.toFixed(1); }} />
+            {/* Emissivity */}
+            <Sl label={"ε (emissivity)"} value={emissOvr >= 0 ? emissOvr : getEmissivity(metal)}
+              set={function (v) { setEmissOvr(v); }}
+              min={0.01} max={1.0} step={0.01} unit="" color="#64748b"
+              fmt={function (v) { return v.toFixed(2); }} />
+            {emissOvr >= 0 ? (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -2 }}>
+                <button onClick={function () { setEmissOvr(-1); }} style={{
+                  fontSize: "0.44rem", color: "#3b82f6", background: "none", border: "none",
+                  cursor: "pointer", textDecoration: "underline", padding: 0
+                }}>reset to auto</button>
+              </div>
+            ) : null}
+            {/* h breakdown */}
+            {(function () {
+              var radPct = hInfo.h_total > 0 ? hInfo.h_rad / hInfo.h_total * 100 : 0;
+              return (
+                <div style={{ marginTop: 4, fontSize: "0.50rem", fontFamily: FONT_M, color: "#64748b" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>h_conv</span>
+                    <span style={{ color: "#0891b2", fontWeight: 600 }}>{hInfo.h_conv.toFixed(1)} <span style={{ fontSize: "0.42rem" }}>W/m²K</span></span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>h_rad</span>
+                    <span style={{ color: "#ef4444", fontWeight: 600 }}>{hInfo.h_rad.toFixed(1)} <span style={{ fontSize: "0.42rem" }}>W/m²K</span></span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, color: "#1e293b" }}>
+                    <span>h_total</span>
+                    <span>{hInfo.h_total.toFixed(1)} <span style={{ fontSize: "0.42rem", color: "#94a3b8" }}>W/m²K</span></span>
+                  </div>
+                  <div style={{ marginTop: 2, height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{
+                      width: radPct + "%", height: "100%", background: "#ef4444", borderRadius: 2
+                    }} />
+                  </div>
+                  <div style={{ fontSize: "0.42rem", color: "#94a3b8", marginTop: 1 }}>
+                    Radiation: {radPct.toFixed(0)}% of cooling
+                  </div>
+                </div>
+              );
+            })()}
           </div>
           {/* Power Supply Settings box */}
           <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
@@ -1190,15 +1431,16 @@ export default function ProcessWindowV5(props) {
               fontSize: "0.52rem", color: "#475569", letterSpacing: "0.08em",
               textTransform: "uppercase", marginBottom: 3, fontWeight: 600
             }}>Flash Thresholds (E_flash = λ / r) at L={gauge}mm</div>
-            <div style={{ fontSize: "0.48rem", fontFamily: FONT_M, lineHeight: 1.5, display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0 6px" }}>
+            <div style={{ fontSize: "0.48rem", fontFamily: FONT_M, lineHeight: 1.6, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 10px" }}>
               {TABLE_METALS.map(function (k) {
                 var m = DB[k];
                 var ef = flashThreshold(m.lam, gauge);
                 return (
                   <div key={k} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     <span style={{ color: m.color, fontWeight: 700 }}>{k}</span>
-                    {" "}<b>{ef.toFixed(1)}</b>
-                    <span style={{ color: "#64748b", fontSize: "0.42rem" }}>{" λ=" + m.lam}</span>
+                    {" "}<b>{ef.toFixed(2)}</b>
+                    <span style={{ color: "#94a3b8", fontSize: "0.40rem" }}>{" V/cm"}</span>
+                    <span style={{ color: "#64748b", fontSize: "0.40rem" }}>{" λ=" + m.lam}</span>
                   </div>
                 );
               })}
@@ -1412,7 +1654,7 @@ export default function ProcessWindowV5(props) {
             }}>
               {"All " + TABLE_METALS.length + " metals at " + geoStr}
             </div>
-            <div style={{ maxHeight: 500, overflowY: "auto" }}>
+            <div>
               <table style={{
                 width: "100%", fontSize: "0.56rem", fontFamily: FONT_M, color: "#334155",
                 borderCollapse: "collapse"
@@ -1437,7 +1679,7 @@ export default function ProcessWindowV5(props) {
                 <tbody>
                   {TABLE_METALS.map(function (k) {
                     var m = DB[k];
-                    var est = estimateJloc(k, geo, thick, width, dum, gauge, jdot, hConv, tubeID, tubeWall);
+                    var est = estimateJloc(k, geo, thick, width, dum, gauge, jdot, hEff, tubeID, tubeWall);
                     var E = m.rhoM * est.Jloc * 1e6 / 100;
                     var clip = est.cool.qTot > 0 ? est.cool.qClip / est.cool.qTot * 100 : 0;
                     var tr_res = transientEpeak(m, geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall);
