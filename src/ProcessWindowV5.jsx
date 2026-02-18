@@ -373,18 +373,31 @@ var EXP = [
   { label: "Al R4", m: "Al", jdot: 107, t: 25, w: 6, L: 20, Jloc: 145, flash: false },
 ];
 
-function finCooling(mp, t_um, w_mm, d_um, L_mm, h, isWire) {
-  var Lm = L_mm / 1000;
+/* Compute cross-section A [m²] and perimeter P [m] for any geometry */
+function geoAP(geo, t_um, w_mm, d_um, tubeID_mm, tubeWall_um) {
   var A, P;
-  if (isWire) {
+  if (geo === "wire") {
     var d = d_um * 1e-6;
     A = Math.PI / 4 * d * d;
     P = Math.PI * d;
+  } else if (geo === "tube") {
+    var id_m = (tubeID_mm || 1) / 1000;
+    var wall_m = (tubeWall_um || 50) * 1e-6;
+    var od_m = id_m + 2 * wall_m;
+    A = Math.PI / 4 * (od_m * od_m - id_m * id_m);  /* annular area */
+    P = Math.PI * (od_m + id_m);  /* inner + outer surfaces */
   } else {
     A = (t_um * 1e-6) * (w_mm / 1000);
     P = 2 * ((t_um * 1e-6) + (w_mm / 1000));
   }
   if (A < 1e-15) A = 1e-15;
+  return { A: A, P: P };
+}
+
+function finCooling(mp, geo, t_um, w_mm, d_um, L_mm, h, tubeID_mm, tubeWall_um) {
+  var Lm = L_mm / 1000;
+  var g = geoAP(geo, t_um, w_mm, d_um, tubeID_mm, tubeWall_um);
+  var A = g.A; var P = g.P;
   var saV = P / A;
   var m = Math.sqrt(h * P / (mp.k_th * A));
   var mL2 = Math.min(m * Lm / 2, 20);
@@ -395,15 +408,14 @@ function finCooling(mp, t_um, w_mm, d_um, L_mm, h, isWire) {
   return { qTot: qTot, qClip: qClip, tau: tau, saV: saV, A: A, P: P };
 }
 
-function estimateJloc(key, geo, t_um, w_mm, d_um, L_mm, jdot, h) {
+function estimateJloc(key, geo, t_um, w_mm, d_um, L_mm, jdot, h, tubeID_mm, tubeWall_um) {
   var mp = DB[key];
-  var isW = (geo === "wire");
   var dT = mp.Tm - 300;
-  var cool = finCooling(mp, t_um, w_mm, d_um, L_mm, h, isW);
+  var cool = finCooling(mp, geo, t_um, w_mm, d_um, L_mm, h, tubeID_mm, tubeWall_um);
   var Jss = Math.sqrt(cool.qTot * dT / mp.rhoM) / 1e6;
 
   if (mp.ref_Jloc != null && mp.ref_jdot != null) {
-    var cRef = finCooling(mp, mp.ref_t, mp.ref_w, 0, mp.ref_L, h, false);
+    var cRef = finCooling(mp, "foil", mp.ref_t, mp.ref_w, 0, mp.ref_L, h, 0, 0);
     var JssRef = Math.sqrt(cRef.qTot * dT / mp.rhoM) / 1e6;
     if (JssRef > 0) {
       var geoScale = Jss / JssRef;
@@ -431,10 +443,9 @@ function buildEJ(key, Jloc, n) {
 }
 
 
-function transientEpeak(mp, t_um, w_mm, d_um, L_mm, Imax, jdot, isWire) {
-  var A_m2;
-  if (isWire) { var d = d_um * 1e-6; A_m2 = Math.PI / 4 * d * d; }
-  else { A_m2 = (t_um * 1e-6) * (w_mm / 1000); }
+function transientEpeak(mp, geo, t_um, w_mm, d_um, L_mm, Imax, jdot, tubeID_mm, tubeWall_um) {
+  var g = geoAP(geo, t_um, w_mm, d_um, tubeID_mm, tubeWall_um);
+  var A_m2 = g.A;
   if (A_m2 < 1e-15) A_m2 = 1e-15;
   var A_mm2 = A_m2 * 1e6;
   var dIdt = jdot * A_mm2 / 60;
@@ -563,6 +574,8 @@ export default function ProcessWindowV5(props) {
   var _t = useState(100); var thick = _t[0]; var setThick = _t[1];
   var _w = useState(6); var width = _w[0]; var setWidth = _w[1];
   var _d = useState(250); var diam = _d[0]; var setDiam = _d[1];
+  var _tid = useState(5); var tubeID = _tid[0]; var setTubeID = _tid[1];
+  var _tw = useState(200); var tubeWall = _tw[0]; var setTubeWall = _tw[1];
   var _l = useState(50); var gauge = _l[0]; var setGauge = _l[1];
   var _j = useState(500); var jdot = _j[0]; var setJdot = _j[1];
   var _h = useState(8); var hConv = _h[0]; var setHConv = _h[1];
@@ -575,12 +588,12 @@ export default function ProcessWindowV5(props) {
   var dum = geo === "wire" ? diam : 0;
 
   var uc = useMemo(function () {
-    var est = estimateJloc(metal, geo, thick, width, dum, gauge, jdot, hConv);
+    var est = estimateJloc(metal, geo, thick, width, dum, gauge, jdot, hConv, tubeID, tubeWall);
     var Jloc = est.Jloc;
     var Emax = mp.rhoM * Jloc * 1e6 / 100;
     var tr = Jloc / Math.max(jdot / 60, 0.001);
     var NR = tr / Math.max(est.cool.tau, 0.001);
-    var Amm2 = geo === "wire" ? (Math.PI / 4 * Math.pow(diam / 1000, 2)) : ((thick / 1000) * width);
+    var Amm2 = geoAP(geo, thick, width, diam, tubeID, tubeWall).A * 1e6;
     var Am2 = Amm2 * 1e-6;
     var Lm = gauge / 1000;
     var I = Jloc * Amm2;
@@ -598,27 +611,27 @@ export default function ProcessWindowV5(props) {
       : 0;
     var flashWin = Jflash > 0 && Jloc > 0 ? (Jloc - Jflash) / Jloc * 100 : 0;
     var willLOC = Jflash > 0 && Jflash < Jloc; /* flash onset before LOC → defect LOC */
-    var trans = transientEpeak(mp, thick, width, dum, gauge, Imax, jdot, geo === "wire");
+    var trans = transientEpeak(mp, geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall);
     return {
       Jloc: Jloc, Emax: Emax, Ef: Ef, Jflash: Jflash, tr: tr, NR: NR, tau: est.cool.tau,
       Epeak: trans.Epeak, tMelt: trans.tMelt, Imelt: trans.Imelt, Jmelt: trans.Jmelt, dIdt: trans.dIdt,
       I: I, Ionset: Ionset, Amm2: Amm2, s10: s10, R0: R0, Jss: est.Jss, clipPct: clipPct,
       Tonset: Tonset, flashWin: flashWin, willLOC: willLOC, TmC: TmC
     };
-  }, [metal, geo, thick, width, diam, gauge, jdot, hConv, vOff, mp, dum, Imax]);
+  }, [metal, geo, thick, width, diam, gauge, jdot, hConv, vOff, mp, dum, Imax, tubeID, tubeWall]);
 
   var curves = useMemo(function () {
     var c = {};
     CHART_METALS.forEach(function (m) {
-      var est = estimateJloc(m, geo, thick, width, dum, gauge, jdot, hConv);
+      var est = estimateJloc(m, geo, thick, width, dum, gauge, jdot, hConv, tubeID, tubeWall);
       var pts = buildEJ(m, est.Jloc, 100);
-      var tr = transientEpeak(DB[m], thick, width, dum, gauge, Imax, jdot, geo === "wire");
+      var tr = transientEpeak(DB[m], geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall);
       var mEf = flashThreshold(DB[m].lam, gauge);
       var mJflash = findJonset(DB[m], est.Jloc, mEf);
       c[m] = { pts: pts, Jloc: est.Jloc, Emax: DB[m].rhoM * est.Jloc * 1e6 / 100, Epeak: tr.Epeak, Jmelt: tr.Jmelt, Ef: mEf, Jflash: mJflash };
     });
     return c;
-  }, [geo, thick, width, diam, gauge, jdot, hConv, dum, Imax]);
+  }, [geo, thick, width, diam, gauge, jdot, hConv, dum, Imax, tubeID, tubeWall]);
 
   var ejData = useMemo(function () {
     var map = {};
@@ -646,7 +659,7 @@ export default function ProcessWindowV5(props) {
   var scatter = useMemo(function () {
     var pts = EXP.map(function (e) {
       var emp = DB[e.m];
-      var cl = finCooling(emp, e.t, e.w, 0, e.L, hConv, false);
+      var cl = finCooling(emp, "foil", e.t, e.w, 0, e.L, hConv, 0, 0);
       var tr = e.Jloc / (e.jdot / 60);
       return Object.assign({}, e, { NR: tr / cl.tau, Emax: emp.rhoM * e.Jloc * 1e6 / 100 });
     });
@@ -688,8 +701,10 @@ export default function ProcessWindowV5(props) {
   }, [uc, mp]);
 
   var geoStr = geo === "foil"
-    ? thick + "um x " + width + "mm foil, L=" + gauge + "mm"
-    : "d" + diam + "um wire, L=" + gauge + "mm";
+    ? thick + "\u00b5m x " + width + "mm foil, L=" + gauge + "mm"
+    : geo === "wire"
+      ? "d" + diam + "\u00b5m wire, L=" + gauge + "mm"
+      : "ID " + tubeID + "mm, wall " + tubeWall + "\u00b5m tube, L=" + gauge + "mm";
 
   return (
     <div style={{
@@ -830,18 +845,28 @@ export default function ProcessWindowV5(props) {
                 onClick={function () { setGeo("foil"); }}>Foil</Chip>
               <Chip active={geo === "wire"} color="#e94560"
                 onClick={function () { setGeo("wire"); }}>Wire</Chip>
+              <Chip active={geo === "tube"} color="#e94560"
+                onClick={function () { setGeo("tube"); }}>Tube</Chip>
             </div>
             {geo === "foil" ? (
               <div>
                 <Sl label="Thickness" value={thick} set={setThick}
-                  min={5} max={1000} step={5} unit="um" />
+                  min={5} max={1000} step={5} unit="µm" />
                 <Sl label="Width" value={width} set={setWidth}
                   min={0.25} max={25} step={0.25} unit="mm"
                   fmt={function (v) { return v.toFixed(2); }} />
               </div>
-            ) : (
+            ) : geo === "wire" ? (
               <Sl label="Diameter" value={diam} set={setDiam}
-                min={10} max={5000} step={10} unit="um" />
+                min={10} max={5000} step={10} unit="µm" />
+            ) : (
+              <div>
+                <Sl label="Inner diameter (ID)" value={tubeID} set={setTubeID}
+                  min={0.5} max={50} step={0.5} unit="mm"
+                  fmt={function (v) { return v.toFixed(1); }} />
+                <Sl label="Wall thickness" value={tubeWall} set={setTubeWall}
+                  min={10} max={2000} step={10} unit="µm" />
+              </div>
             )}
             <Sl label="Gauge length L" value={gauge} set={setGauge}
               min={2} max={200} step={1} unit="mm" color="#f59e0b" />
@@ -864,7 +889,7 @@ export default function ProcessWindowV5(props) {
               textTransform: "uppercase", marginBottom: 3, fontWeight: 600
             }}>Power Supply Settings</div>
             {(function () {
-              var Amm2 = geo === "wire" ? (Math.PI / 4 * Math.pow(diam / 1000, 2)) : ((thick / 1000) * width);
+              var Amm2 = geoAP(geo, thick, width, diam, tubeID, tubeWall).A * 1e6;
               var dIdt_Amin = jdot * Amm2;  /* A/min */
               var dIdt_As = dIdt_Amin / 60;  /* A/s */
               var Ionset = uc.Jflash * Amm2;
@@ -1172,10 +1197,10 @@ export default function ProcessWindowV5(props) {
                 <tbody>
                   {TABLE_METALS.map(function (k) {
                     var m = DB[k];
-                    var est = estimateJloc(k, geo, thick, width, dum, gauge, jdot, hConv);
+                    var est = estimateJloc(k, geo, thick, width, dum, gauge, jdot, hConv, tubeID, tubeWall);
                     var E = m.rhoM * est.Jloc * 1e6 / 100;
                     var clip = est.cool.qTot > 0 ? est.cool.qClip / est.cool.qTot * 100 : 0;
-                    var tr_res = transientEpeak(m, thick, width, dum, gauge, Imax, jdot, geo === "wire");
+                    var tr_res = transientEpeak(m, geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall);
                     var tr_E = tr_res.Epeak;
                     var ef = flashThreshold(m.lam, gauge);
                     var Jfl = findJonset(m, est.Jloc, ef);
