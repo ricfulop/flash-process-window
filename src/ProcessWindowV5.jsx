@@ -325,9 +325,209 @@ const DB = {
     ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
     Eflash: null, Efsrc: null, color: "#a855f7", cat: "Actinide"
   },
+  /* ═══════════════════════════════════════════════════════════════════
+     METALLIC ALLOYS — from Voltivity DFT Handbook v12, Metallic Alloys sheet
+     Physical properties: ASM Handbook, CRC, MatWeb standard references
+     λ (voltivity): composition-weighted Grüneisen prediction
+     ═══════════════════════════════════════════════════════════════════ */
+  /* ── AUSTENITIC STAINLESS STEELS ── */
+  "304SS": {
+    name: "304 Stainless Steel", rho0: 7.2e-7, rhoM: 1.25e-6, Tm: 1723, Cp: 500,
+    rho_m: 8000, k_th: 16.2, lam: 1111,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#334155", cat: "Stainless Steel"
+  },
+  "316SS": {
+    name: "316 Stainless Steel", rho0: 7.4e-7, rhoM: 1.26e-6, Tm: 1673, Cp: 500,
+    rho_m: 8000, k_th: 16.3, lam: 1109,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#475569", cat: "Stainless Steel"
+  },
+  "316LSS": {
+    name: "316L Stainless Steel", rho0: 7.4e-7, rhoM: 1.26e-6, Tm: 1673, Cp: 500,
+    rho_m: 7990, k_th: 16.3, lam: 1109,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#64748b", cat: "Stainless Steel"
+  },
+  "310SS": {
+    name: "310 Stainless Steel", rho0: 7.8e-7, rhoM: 1.28e-6, Tm: 1673, Cp: 502,
+    rho_m: 7900, k_th: 14.2, lam: 1107,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#94a3b8", cat: "Stainless Steel"
+  },
+  /* ── DUPLEX STAINLESS STEEL ── */
+  "Duplex2205": {
+    name: "Duplex 2205", rho0: 8.0e-7, rhoM: 1.30e-6, Tm: 1703, Cp: 500,
+    rho_m: 7800, k_th: 19, lam: 1116,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#1e3a5f", cat: "Stainless Steel"
+  },
+  /* ── NICKEL SUPERALLOYS ── */
+  "IN718": {
+    name: "Inconel 718", rho0: 1.25e-6, rhoM: 1.30e-6, Tm: 1609, Cp: 435,
+    rho_m: 8190, k_th: 11.4, lam: 1061,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#16a34a", cat: "Ni Superalloy"
+  },
+  "IN625": {
+    name: "Inconel 625", rho0: 1.29e-6, rhoM: 1.33e-6, Tm: 1623, Cp: 410,
+    rho_m: 8440, k_th: 9.8, lam: 1054,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#15803d", cat: "Ni Superalloy"
+  },
+  "HasX": {
+    name: "Hastelloy X", rho0: 1.18e-6, rhoM: 1.26e-6, Tm: 1628, Cp: 473,
+    rho_m: 8220, k_th: 9.1, lam: 1063,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#166534", cat: "Ni Superalloy"
+  },
+  "Wasp": {
+    name: "Waspaloy", rho0: 1.24e-6, rhoM: 1.30e-6, Tm: 1623, Cp: 460,
+    rho_m: 8190, k_th: 11.7, lam: 1056,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#047857", cat: "Ni Superalloy"
+  },
+  "H230": {
+    name: "Haynes 230", rho0: 1.25e-6, rhoM: 1.32e-6, Tm: 1628, Cp: 397,
+    rho_m: 8970, k_th: 8.9, lam: 1068,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#065f46", cat: "Ni Superalloy"
+  },
+  "Rene41": {
+    name: "René 41", rho0: 1.31e-6, rhoM: 1.35e-6, Tm: 1588, Cp: 421,
+    rho_m: 8250, k_th: 10.9, lam: 1059,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#0d9488", cat: "Ni Superalloy"
+  },
+  /* ── TITANIUM ALLOYS ── */
+  "Ti64": {
+    name: "Ti-6Al-4V", rho0: 1.71e-6, rhoM: 1.85e-6, Tm: 1933, Cp: 526,
+    rho_m: 4430, k_th: 6.7, lam: 1193,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#1d4ed8", cat: "Ti Alloy"
+  },
+  "Ti6242": {
+    name: "Ti-6Al-2Sn-4Zr-2Mo", rho0: 1.67e-6, rhoM: 1.82e-6, Tm: 1923, Cp: 502,
+    rho_m: 4540, k_th: 7.7, lam: 1207,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#2563eb", cat: "Ti Alloy"
+  },
+  "CPTi2": {
+    name: "CP-Ti Grade 2", rho0: 5.2e-7, rhoM: 1.78e-6, Tm: 1941, Cp: 523,
+    rho_m: 4510, k_th: 16.4, lam: 1205,
+    ref_jdot: 500, ref_Jloc: 68, ref_t: 100, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#3b82f6", cat: "Ti Alloy"
+  },
+  "B21S": {
+    name: "β-21S (Ti-15Mo-3Nb-3Al)", rho0: 1.42e-6, rhoM: 1.60e-6, Tm: 1813, Cp: 500,
+    rho_m: 4940, k_th: 7.8, lam: 1164,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#60a5fa", cat: "Ti Alloy"
+  },
+  /* ── ALUMINUM ALLOYS ── */
+  "Al6061": {
+    name: "Al 6061", rho0: 3.99e-8, rhoM: 1.3e-7, Tm: 855, Cp: 896,
+    rho_m: 2700, k_th: 167, lam: 984,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#dc2626", cat: "Al Alloy"
+  },
+  "Al7075": {
+    name: "Al 7075", rho0: 5.15e-8, rhoM: 1.4e-7, Tm: 908, Cp: 960,
+    rho_m: 2810, k_th: 130, lam: 977,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#b91c1c", cat: "Al Alloy"
+  },
+  "Al2024": {
+    name: "Al 2024", rho0: 5.82e-8, rhoM: 1.4e-7, Tm: 911, Cp: 875,
+    rho_m: 2780, k_th: 121, lam: 982,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#991b1b", cat: "Al Alloy"
+  },
+  "Al5083": {
+    name: "Al 5083", rho0: 5.9e-8, rhoM: 1.4e-7, Tm: 847, Cp: 900,
+    rho_m: 2660, k_th: 117, lam: 987,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#7f1d1d", cat: "Al Alloy"
+  },
+  /* ── SOLDERS ── */
+  "SAC305": {
+    name: "SAC305 (Sn-3Ag-0.5Cu)", rho0: 1.1e-7, rhoM: 4.8e-7, Tm: 490, Cp: 220,
+    rho_m: 7380, k_th: 58, lam: 987,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#a16207", cat: "Solder"
+  },
+  "SAC387": {
+    name: "SAC387 (Sn-3.8Ag-0.7Cu)", rho0: 1.2e-7, rhoM: 4.8e-7, Tm: 490, Cp: 219,
+    rho_m: 7400, k_th: 55, lam: 984,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#ca8a04", cat: "Solder"
+  },
+  "SnPb": {
+    name: "Sn-37Pb (eutectic)", rho0: 1.5e-7, rhoM: 6.8e-7, Tm: 456, Cp: 176,
+    rho_m: 8500, k_th: 50, lam: 972,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#eab308", cat: "Solder"
+  },
+  /* ── HIGH-ENTROPY ALLOYS ── */
+  "Cantor": {
+    name: "CoCrFeMnNi (Cantor)", rho0: 9.5e-7, rhoM: 1.4e-6, Tm: 1607, Cp: 450,
+    rho_m: 8000, k_th: 12, lam: 1099,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#7c3aed", cat: "HEA"
+  },
+  "CCFN": {
+    name: "CoCrFeNi", rho0: 8.9e-7, rhoM: 1.3e-6, Tm: 1690, Cp: 440,
+    rho_m: 8100, k_th: 13, lam: 1087,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#6d28d9", cat: "HEA"
+  },
+  "ACCFN": {
+    name: "AlCoCrFeNi", rho0: 1.53e-6, rhoM: 1.7e-6, Tm: 1573, Cp: 490,
+    rho_m: 6710, k_th: 10.5, lam: 1111,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#5b21b6", cat: "HEA"
+  },
+  "TZHNT": {
+    name: "TiZrHfNbTa (refractory HEA)", rho0: 1.85e-6, rhoM: 2.0e-6, Tm: 2423, Cp: 260,
+    rho_m: 9940, k_th: 8, lam: 1207,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#4c1d95", cat: "HEA"
+  },
+  /* ── COPPER ALLOYS ── */
+  "Brass": {
+    name: "Cu-30Zn (Brass)", rho0: 6.2e-8, rhoM: 3.5e-7, Tm: 1188, Cp: 377,
+    rho_m: 8530, k_th: 120, lam: 1006,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#d97706", cat: "Cu Alloy"
+  },
+  "Bronze": {
+    name: "Cu-8Sn (Bronze)", rho0: 1.1e-7, rhoM: 4.5e-7, Tm: 1273, Cp: 380,
+    rho_m: 8800, k_th: 75, lam: 1025,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#b45309", cat: "Cu Alloy"
+  },
+  /* ── SPECIAL ALLOYS ── */
+  "NiTi": {
+    name: "NiTi (Nitinol)", rho0: 8.2e-7, rhoM: 1.1e-6, Tm: 1583, Cp: 450,
+    rho_m: 6450, k_th: 18, lam: 1049,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#0891b2", cat: "Special Alloy"
+  },
+  "Kovar": {
+    name: "Kovar (Fe-29Ni-17Co)", rho0: 4.9e-7, rhoM: 1.2e-6, Tm: 1723, Cp: 439,
+    rho_m: 8360, k_th: 17.3, lam: 1073,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#0e7490", cat: "Special Alloy"
+  },
+  "AZ31": {
+    name: "AZ31 (Mg-3Al-1Zn)", rho0: 9.2e-8, rhoM: 3.5e-7, Tm: 903, Cp: 1050,
+    rho_m: 1770, k_th: 96, lam: 1135,
+    ref_jdot: null, ref_Jloc: null, ref_t: 50, ref_w: 6, ref_L: 20,
+    Eflash: null, Efsrc: null, color: "#155e75", cat: "Mg Alloy"
+  },
 };
 
-/* Category groupings for UI presentation — periodic-table-inspired layout */
+/* Category groupings for UI presentation */
 var METAL_CATEGORIES = {
   "Alkali": ["Li", "Na", "K"],
   "Alk. Earth": ["Be", "Mg", "Ca", "Sr", "Ba"],
@@ -337,6 +537,16 @@ var METAL_CATEGORIES = {
   "Post-Trans.": ["Al", "Ga", "In", "Sn", "Tl", "Pb", "Bi"],
   "Lanthanide": ["La", "Ce", "Nd", "Gd", "Dy", "Er", "Lu"],
   "Actinide": ["Th", "U"],
+};
+var ALLOY_CATEGORIES = {
+  "Stainless Steel": ["304SS", "316SS", "316LSS", "310SS", "Duplex2205"],
+  "Ni Superalloy": ["IN718", "IN625", "HasX", "Wasp", "H230", "Rene41"],
+  "Ti Alloy": ["Ti64", "Ti6242", "CPTi2", "B21S"],
+  "Al Alloy": ["Al6061", "Al7075", "Al2024", "Al5083"],
+  "Solder": ["SAC305", "SAC387", "SnPb"],
+  "HEA": ["Cantor", "CCFN", "ACCFN", "TZHNT"],
+  "Cu Alloy": ["Brass", "Bronze"],
+  "Other Alloy": ["NiTi", "Kovar", "AZ31"],
 };
 
 /* Full periodic table — standard 18-column IUPAC layout, all 118 elements */
@@ -352,12 +562,14 @@ var PT_ROWS = [
 var PT_LN = ["La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu"];
 var PT_AN = ["Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"];
 
-/* All metals for the comparison table */
+/* All pure metals for the comparison table */
 var ALL_METALS = Object.values(METAL_CATEGORIES).flat();
+var ALL_ALLOYS = Object.values(ALLOY_CATEGORIES).flat();
+var ALL_MATERIALS = ALL_METALS.concat(ALL_ALLOYS);
 
-/* Chart metals: all metals in the database get E(J) curves */
-var CHART_METALS = ALL_METALS;
-var TABLE_METALS = ALL_METALS;
+/* Chart metals: all materials in the database get E(J) curves */
+var CHART_METALS = ALL_MATERIALS;
+var TABLE_METALS = ALL_MATERIALS;
 
 var EXP = [
   { label: "Ti R14", m: "Ti", jdot: 1000, t: 100, w: 6, L: 20, Jloc: 70.3, flash: true },
@@ -730,7 +942,7 @@ export default function ProcessWindowV5(props) {
           Flash Process Parameters for Metals
         </h1>
         <p style={{ fontFamily: FONT_M, fontSize: "0.58rem", color: "#64748b", margin: "1px 0 0" }}>
-          fin+clip thermal model | dynamic E(J) | {ALL_METALS.length} metals | Voltivity DFT Handbook v12
+          fin+clip thermal model | dynamic E(J) | {ALL_METALS.length} metals + {ALL_ALLOYS.length} alloys | Voltivity DFT Handbook v12
         </p>
         {props.onOpenGuide ? (
           <button onClick={props.onOpenGuide} style={{
@@ -755,7 +967,7 @@ export default function ProcessWindowV5(props) {
             <div style={{
               fontSize: "0.54rem", color: "#475569", letterSpacing: "0.1em",
               textTransform: "uppercase", fontWeight: 600
-            }}>Select Metal ({ALL_METALS.length})</div>
+            }}>Select Material ({ALL_MATERIALS.length})</div>
             <label style={{
               display: "flex", alignItems: "center", gap: 4, cursor: "pointer",
               fontSize: "0.5rem", color: "#475569"
@@ -835,6 +1047,34 @@ export default function ProcessWindowV5(props) {
             </div>
           );
         })()}
+        {/* ── ALLOY SELECTOR ── */}
+        <div style={{ marginTop: 4 }}>
+          <div style={{
+            fontSize: "0.48rem", color: "#64748b", letterSpacing: "0.08em",
+            textTransform: "uppercase", fontWeight: 600, marginBottom: 3
+          }}>Alloys ({ALL_ALLOYS.length})</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            {Object.entries(ALLOY_CATEGORIES).map(function (entry) {
+              var catName = entry[0];
+              var keys = entry[1];
+              return (
+                <div key={catName} style={{ marginRight: 6, marginBottom: 2 }}>
+                  <div style={{
+                    fontSize: "0.38rem", color: "#94a3b8", fontFamily: FONT_M,
+                    fontWeight: 600, letterSpacing: "0.05em", marginBottom: 1,
+                    textTransform: "uppercase"
+                  }}>{catName}</div>
+                  <div style={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                    {keys.map(function (k) {
+                      return <Chip key={k} active={metal === k} color={DB[k].color}
+                        onClick={function () { setMetal(k); }}>{k}</Chip>;
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: "0.5rem" }}>
         {/* LEFT */}
