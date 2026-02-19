@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea, Label, Cell, LineChart, Line, Legend
@@ -973,14 +973,66 @@ function InfoRow(props) {
 
 function Sl(props) {
   var c = props.color || "#e94560";
+  var _ed = useState(false); var editing = _ed[0]; var setEditing = _ed[1];
+  var _tv = useState(""); var tmpVal = _tv[0]; var setTmpVal = _tv[1];
+  var inputRef = useRef(null);
+
+  function startEdit() {
+    setTmpVal(props.fmt ? props.fmt(props.value) : String(props.value));
+    setEditing(true);
+  }
+  function commitEdit() {
+    var n = parseFloat(tmpVal);
+    if (!isNaN(n)) {
+      if (props.min != null) n = Math.max(props.min, n);
+      if (props.max != null) n = Math.min(props.max, n);
+      props.set(n);
+    }
+    setEditing(false);
+  }
+  function cancelEdit() { setEditing(false); }
+
+  /* Auto-focus & select text when input appears */
+  useEffect(function () {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
   return (
     <div style={{ marginBottom: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <span style={{ fontSize: "0.63rem", color: "#64748b" }}>{props.label}</span>
-        <span style={{ fontSize: "0.74rem", fontFamily: FONT_M, fontWeight: 700, color: c }}>
-          {props.fmt ? props.fmt(props.value) : props.value}
-          {props.unit ? <span style={{ fontSize: "0.54rem", color: "#94a3b8" }}>{" "}{props.unit}</span> : null}
-        </span>
+        {editing ? (
+          <span style={{ display: "inline-flex", alignItems: "baseline", gap: 2 }}>
+            <input ref={inputRef} type="text" value={tmpVal}
+              onChange={function (e) { setTmpVal(e.target.value); }}
+              onKeyDown={function (e) {
+                if (e.key === "Enter") commitEdit();
+                if (e.key === "Escape") cancelEdit();
+              }}
+              onBlur={commitEdit}
+              style={{
+                width: 52, fontSize: "0.72rem", fontFamily: FONT_M, fontWeight: 700,
+                color: c, textAlign: "right", border: "none", borderBottom: "1.5px solid " + c,
+                background: "transparent", outline: "none", padding: "0 1px",
+                borderRadius: 0
+              }} />
+            {props.unit ? <span style={{ fontSize: "0.54rem", color: "#94a3b8" }}>{props.unit}</span> : null}
+          </span>
+        ) : (
+          <span onClick={startEdit} title="Click to type a value"
+            style={{
+              fontSize: "0.74rem", fontFamily: FONT_M, fontWeight: 700, color: c,
+              cursor: "text", borderBottom: "1px dashed transparent", transition: "border-color 0.15s"
+            }}
+            onMouseEnter={function (e) { e.currentTarget.style.borderBottomColor = c; }}
+            onMouseLeave={function (e) { e.currentTarget.style.borderBottomColor = "transparent"; }}>
+            {props.fmt ? props.fmt(props.value) : props.value}
+            {props.unit ? <span style={{ fontSize: "0.54rem", color: "#94a3b8" }}>{" "}{props.unit}</span> : null}
+          </span>
+        )}
       </div>
       <input type="range" min={props.min} max={props.max} step={props.step} value={props.value}
         onChange={function (e) { props.set(Number(e.target.value)); }}
