@@ -766,15 +766,17 @@ function computeHtotal(gasKey, P_torr, T_s, T_w, D_char, emissivity) {
   return { h_conv: hc, h_rad: hr, h_total: hc + hr };
 }
 
-/* Characteristic length for convection given geometry */
-function geoDchar(geo, t_um, d_um, tubeID_mm, tubeWall_um) {
+/* Characteristic length for convection given geometry.
+   Foil: width (strip width governs buoyant flow, not thickness).
+   Wire: diameter.  Tube: outer diameter. */
+function geoDchar(geo, t_um, w_mm, d_um, tubeID_mm, tubeWall_um) {
   if (geo === "wire") return (d_um || 250) * 1e-6;
   if (geo === "tube") {
     var id_m = (tubeID_mm || 1) / 1000;
     var wall_m = (tubeWall_um || 50) * 1e-6;
     return id_m + 2 * wall_m;  /* outer diameter */
   }
-  return 2 * (t_um || 100) * 1e-6;  /* foil: 2×thickness */
+  return (w_mm || 6) / 1000;   /* foil: strip width */
 }
 
 function finCooling(mp, geo, t_um, w_mm, d_um, L_mm, h, tubeID_mm, tubeWall_um) {
@@ -975,12 +977,12 @@ export default function ProcessWindowV5(props) {
 
   /* Compute effective h from gas model at melting temperature */
   var hInfo = useMemo(function () {
-    var Dch = geoDchar(geo, thick, dum, tubeID, tubeWall);
+    var Dch = geoDchar(geo, thick, width, dum, tubeID, tubeWall);
     var eps = emissOvr >= 0 ? emissOvr : getEmissivity(metal);
     var T_s = mp.Tm;  /* evaluate at specimen melting point (LOC condition) */
     var T_w = 300;     /* wall/ambient temperature */
     return computeHtotal(gasAtm, chamberP, T_s, T_w, Dch, eps);
-  }, [gasAtm, chamberP, emissOvr, metal, mp, geo, thick, dum, tubeID, tubeWall]);
+  }, [gasAtm, chamberP, emissOvr, metal, mp, geo, thick, width, dum, tubeID, tubeWall]);
   var hEff = hInfo.h_total;
 
   var uc = useMemo(function () {
