@@ -638,21 +638,29 @@ var PURE_GAS = {
     M: 0.03995, Cp: 520, mu_ref: 2.27e-5, T_ref: 300, mu_exp: 0.7,
     d_mol: 3.40e-10,
     k0: 0.018, k1: 3.80e-5
+  },
+  O2: {
+    M: 0.032, Cp: 920, mu_ref: 2.06e-5, T_ref: 300, mu_exp: 0.7,
+    d_mol: 3.46e-10,
+    k0: 0.0262, k1: 5.70e-5
   }
 };
 
 /* Named gas atmospheres */
 var GASES = {
+  vacuum: { label: "Vacuum", comp: null },
   forming: { label: "Forming Gas (95N₂/5H₂)", comp: { N2: 0.95, H2: 0.05 } },
   argon: { label: "Argon", comp: { Ar: 1.0 } },
   hydrogen: { label: "Hydrogen (H₂)", comp: { H2: 1.0 } },
-  nitrogen: { label: "Nitrogen (N₂)", comp: { N2: 1.0 } }
+  nitrogen: { label: "Nitrogen (N₂)", comp: { N2: 1.0 } },
+  air: { label: "Air", comp: { N2: 0.78, O2: 0.21, Ar: 0.01 } }
 };
 
 /* Compute temperature-dependent gas properties for a named gas mixture */
 function gasMixProps(gasKey, T_film) {
   var gas = GASES[gasKey] || GASES.forming;
   var comp = gas.comp;
+  if (!comp) return { k: 0, mu: 0, Cp: 0, M: 1, Pr: 0, d_mol: 0 };  /* vacuum */
   var k_mix = 0, mu_mix = 0, Cp_num = 0, M_mix = 0, d_mix = 0;
 
   var species = Object.keys(comp);
@@ -684,6 +692,7 @@ function meanFreePath(d_mol, T, P_Pa) {
 /* Churchill-Chu natural convection for horizontal cylinder
    with pressure-dependent regime transitions */
 function computeHconv(gasKey, D_char, T_s, T_w, P_Pa) {
+  if (gasKey === "vacuum") return 0;  /* no gas → no convection */
   if (D_char < 1e-6) D_char = 1e-6;
   if (T_s <= T_w) return 0;
   var T_film = (T_s + T_w) / 2;
