@@ -758,12 +758,31 @@ var EMISS_DB = {
 };
 function getEmissivity(metalKey) { return EMISS_DB[metalKey] || 0.40; }
 
-/* Main entry: compute total effective h */
+/* Main entry: compute total effective h at a single temperature */
 function computeHtotal(gasKey, P_torr, T_s, T_w, D_char, emissivity) {
   var P_Pa = P_torr * 133.322;  /* 1 torr = 133.322 Pa */
   var hc = computeHconv(gasKey, D_char, T_s, T_w, P_Pa);
   var hr = computeHrad(T_s, T_w, emissivity);
   return { h_conv: hc, h_rad: hr, h_total: hc + hr };
+}
+
+/* Temperature-averaged h from RT to T_m in 50K steps (trapezoidal rule).
+   Returns h_avg for physics, plus spot values at RT and T_m for display. */
+function computeHprofile(gasKey, P_torr, T_m, T_w, D_char, emissivity) {
+  var stepK = 50;
+  var nSteps = Math.max(1, Math.ceil((T_m - T_w) / stepK));
+  var dT = (T_m - T_w) / nSteps;
+  var sum = 0;
+  for (var i = 0; i <= nSteps; i++) {
+    var T = T_w + i * dT;
+    var ht = computeHtotal(gasKey, P_torr, T, T_w, D_char, emissivity);
+    var w = (i === 0 || i === nSteps) ? 0.5 : 1.0;
+    sum += w * ht.h_total;
+  }
+  var h_avg = sum / nSteps;
+  var hRT = computeHtotal(gasKey, P_torr, T_w + 1, T_w, D_char, emissivity);
+  var hTm = computeHtotal(gasKey, P_torr, T_m, T_w, D_char, emissivity);
+  return { h_avg: h_avg, hRT: hRT, hTm: hTm };
 }
 
 /* Characteristic length for convection given geometry.
@@ -975,15 +994,15 @@ export default function ProcessWindowV5(props) {
   var mp = DB[metal];
   var dum = geo === "wire" ? diam : 0;
 
-  /* Compute effective h from gas model at melting temperature */
+  /* Compute temperature-averaged h from RT→T_m (50K steps) */
   var hInfo = useMemo(function () {
     var Dch = geoDchar(geo, thick, width, dum, tubeID, tubeWall);
     var eps = emissOvr >= 0 ? emissOvr : getEmissivity(metal);
-    var T_s = mp.Tm;  /* evaluate at specimen melting point (LOC condition) */
-    var T_w = 300;     /* wall/ambient temperature */
-    return computeHtotal(gasAtm, chamberP, T_s, T_w, Dch, eps);
+    var T_w = 300;
+    var prof = computeHprofile(gasAtm, chamberP, mp.Tm, T_w, Dch, eps);
+    return prof;  /* { h_avg, hRT:{h_conv,h_rad,h_total}, hTm:{…} } */
   }, [gasAtm, chamberP, emissOvr, metal, mp, geo, thick, width, dum, tubeID, tubeWall]);
-  var hEff = hInfo.h_total;
+  var hEff = hInfo.h_avg;
 
   var uc = useMemo(function () {
     var est = estimateJloc(metal, geo, thick, width, dum, gauge, jdot, hEff, tubeID, tubeWall);
@@ -1017,6 +1036,14 @@ export default function ProcessWindowV5(props) {
       Tonset: Tonset, flashWin: flashWin, willLOC: willLOC, TmC: TmC
     };
   }, [metal, geo, thick, width, diam, gauge, jdot, hEff, vOff, mp, dum, Imax, tubeID, tubeWall]);
+
+  /* h at flash onset temperature (for display) */
+  var hAtOnset = useMemo(function () {
+    var Dch = geoDchar(geo, thick, width, dum, tubeID, tubeWall);
+    var eps = emissOvr >= 0 ? emissOvr : getEmissivity(metal);
+    var T_onset_K = uc.Tonset + 273;
+    return computeHtotal(gasAtm, chamberP, T_onset_K, 300, Dch, eps);
+  }, [gasAtm, chamberP, emissOvr, metal, geo, thick, width, dum, tubeID, tubeWall, uc.Tonset]);
 
   var curves = useMemo(function () {
     var c = {};
@@ -1336,30 +1363,50 @@ export default function ProcessWindowV5(props) {
                 }}>reset to auto</button>
               </div>
             ) : null}
-            {/* h breakdown */}
+            {/* h breakdown at RT, onset, Tm */}
             {(function () {
-              var radPct = hInfo.h_total > 0 ? hInfo.h_rad / hInfo.h_total * 100 : 0;
+              var rows = [
+                { label: "RT (27°C)", h: hInfo.hRT },
+                { label: "Onset (" + Math.round(uc.Tonset) + "°C)", h: hAtOnset },
+                { label: "T_m (" + Math.round(mp.Tm - 273) + "°C)", h: hInfo.hTm }
+              ];
+              var radPctAvg = hInfo.h_avg > 0
+                ? (hInfo.hTm.h_rad / hInfo.hTm.h_total * 100) : 0;
               return (
-                <div style={{ marginTop: 4, fontSize: "0.50rem", fontFamily: FONT_M, color: "#64748b" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span>h_conv</span>
-                    <span style={{ color: "#0891b2", fontWeight: 600 }}>{hInfo.h_conv.toFixed(1)} <span style={{ fontSize: "0.42rem" }}>W/m²K</span></span>
+                <div style={{ marginTop: 4, fontSize: "0.48rem", fontFamily: FONT_M, color: "#64748b" }}>
+                  {/* header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #e2e8f0", paddingBottom: 1, marginBottom: 1 }}>
+                    <span style={{ width: 72 }}></span>
+                    <span style={{ width: 55, textAlign: "right", fontSize: "0.40rem", color: "#94a3b8" }}>h_conv</span>
+                    <span style={{ width: 55, textAlign: "right", fontSize: "0.40rem", color: "#94a3b8" }}>h_rad</span>
+                    <span style={{ width: 55, textAlign: "right", fontSize: "0.40rem", color: "#94a3b8" }}>h_total</span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span>h_rad</span>
-                    <span style={{ color: "#ef4444", fontWeight: 600 }}>{hInfo.h_rad.toFixed(1)} <span style={{ fontSize: "0.42rem" }}>W/m²K</span></span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, color: "#1e293b" }}>
-                    <span>h_total</span>
-                    <span>{hInfo.h_total.toFixed(1)} <span style={{ fontSize: "0.42rem", color: "#94a3b8" }}>W/m²K</span></span>
+                  {rows.map(function (r) {
+                    return (
+                      <div key={r.label} style={{ display: "flex", justifyContent: "space-between", padding: "0.5px 0" }}>
+                        <span style={{ width: 72, fontSize: "0.44rem" }}>{r.label}</span>
+                        <span style={{ width: 55, textAlign: "right", color: "#0891b2" }}>{r.h.h_conv.toFixed(1)}</span>
+                        <span style={{ width: 55, textAlign: "right", color: "#ef4444" }}>{r.h.h_rad.toFixed(1)}</span>
+                        <span style={{ width: 55, textAlign: "right", fontWeight: 600, color: "#1e293b" }}>{r.h.h_total.toFixed(1)}</span>
+                      </div>
+                    );
+                  })}
+                  {/* avg used for physics */}
+                  <div style={{
+                    display: "flex", justifyContent: "space-between", borderTop: "1px solid #e2e8f0",
+                    marginTop: 2, paddingTop: 2, fontWeight: 700, color: "#1e293b"
+                  }}>
+                    <span style={{ fontSize: "0.44rem" }}>h_avg (used)</span>
+                    <span>{hInfo.h_avg.toFixed(1)} <span style={{ fontSize: "0.40rem", color: "#94a3b8", fontWeight: 400 }}>W/m²K</span></span>
                   </div>
                   <div style={{ marginTop: 2, height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{
-                      width: radPct + "%", height: "100%", background: "#ef4444", borderRadius: 2
+                      width: radPctAvg + "%", height: "100%",
+                      background: "linear-gradient(90deg, #ef4444, #f97316)", borderRadius: 2
                     }} />
                   </div>
-                  <div style={{ fontSize: "0.42rem", color: "#94a3b8", marginTop: 1 }}>
-                    Radiation: {radPct.toFixed(0)}% of cooling
+                  <div style={{ fontSize: "0.40rem", color: "#94a3b8", marginTop: 1 }}>
+                    Radiation: {radPctAvg.toFixed(0)}% at T_m · averaged over 50K steps
                   </div>
                 </div>
               );
