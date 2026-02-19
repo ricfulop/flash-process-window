@@ -847,13 +847,32 @@ function buildEJ(key, Jloc, n) {
 }
 
 
-function transientEpeak(mp, geo, t_um, w_mm, d_um, L_mm, Imax, jdot, tubeID_mm, tubeWall_um) {
+function transientEpeak(mp, geo, t_um, w_mm, d_um, L_mm, Imax, jdot, tubeID_mm, tubeWall_um, gasKey, P_torr, D_char, emissivity) {
   var g = geoAP(geo, t_um, w_mm, d_um, tubeID_mm, tubeWall_um);
   var A_m2 = g.A;
   if (A_m2 < 1e-15) A_m2 = 1e-15;
   var A_mm2 = A_m2 * 1e6;
+  var saV = g.P / g.A;
+  var Lm = L_mm / 1000;
   var dIdt = jdot * A_mm2 / 60;
   if (dIdt < 0.01) dIdt = 0.01;
+
+  /* Pre-build h(T) lookup table at 25K intervals for fast interpolation */
+  var hasCooling = gasKey && P_torr != null;
+  var hStep = 25;
+  var hTable = [];   /* array of h_total values at T = 300, 325, 350, ... */
+  if (hasCooling) {
+    for (var Tt = 300; Tt <= mp.Tm + hStep; Tt += hStep) {
+      hTable.push(computeHtotal(gasKey, P_torr, Math.max(Tt, 301), 300, D_char, emissivity).h_total);
+    }
+  }
+  function hLookup(T) {
+    var idx = (T - 300) / hStep;
+    var i0 = Math.max(0, Math.min(hTable.length - 2, Math.floor(idx)));
+    var f = idx - i0;
+    return hTable[i0] + f * (hTable[i0 + 1] - hTable[i0]);
+  }
+
   var T = 300; var Epk = 0; var dt = 0.002;
   var tMelt = 0; var Imelt = 0; var Jmelt = 0;
   for (var step = 0; step < 10000; step++) {
@@ -864,7 +883,19 @@ function transientEpeak(mp, geo, t_um, w_mm, d_um, L_mm, Imax, jdot, tubeID_mm, 
     var rho = mp.rho0 + (mp.rhoM - mp.rho0) * frac;
     var E = rho * J / 100;
     if (E > Epk) Epk = E;
-    T += rho * J * J / (mp.rho_m * mp.Cp) * dt;
+    /* Joule heating */
+    var qJoule = rho * J * J / (mp.rho_m * mp.Cp);
+    /* Dynamic cooling: h(T)·SA/V·ΔT + clip conduction */
+    var qCool = 0;
+    if (hasCooling && T > 301) {
+      var hT = hLookup(T);
+      qCool += hT * saV * (T - 300) / (mp.rho_m * mp.Cp);
+      var mFin = Math.sqrt(hT * g.P / (mp.k_th * g.A));
+      var mL2 = Math.min(mFin * Lm / 2, 20);
+      qCool += 2 * mp.k_th * mFin * Math.tanh(mL2) / Lm / (mp.rho_m * mp.Cp);
+    }
+    T += (qJoule - qCool) * dt;
+    if (T < 300) T = 300;
     if (T >= mp.Tm) { tMelt = t; Imelt = I; Jmelt = J / 1e6; break; }
     if (t > 20) break;
   }
@@ -1000,7 +1031,9 @@ export default function ProcessWindowV5(props) {
     var eps = emissOvr >= 0 ? emissOvr : getEmissivity(metal);
     var T_w = 300;
     var prof = computeHprofile(gasAtm, chamberP, mp.Tm, T_w, Dch, eps);
-    return prof;  /* { h_avg, hRT:{h_conv,h_rad,h_total}, hTm:{…} } */
+    prof.Dch = Dch;
+    prof.eps = eps;
+    return prof;
   }, [gasAtm, chamberP, emissOvr, metal, mp, geo, thick, width, dum, tubeID, tubeWall]);
   var hEff = hInfo.h_avg;
 
@@ -1028,14 +1061,14 @@ export default function ProcessWindowV5(props) {
       : 0;
     var flashWin = Jflash > 0 && Jloc > 0 ? (Jloc - Jflash) / Jloc * 100 : 0;
     var willLOC = Jflash > 0 && Jflash < Jloc; /* flash onset before LOC → defect LOC */
-    var trans = transientEpeak(mp, geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall);
+    var trans = transientEpeak(mp, geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall, gasAtm, chamberP, hInfo.Dch, hInfo.eps);
     return {
       Jloc: Jloc, Emax: Emax, Ef: Ef, Jflash: Jflash, tr: tr, NR: NR, tau: est.cool.tau,
       Epeak: trans.Epeak, tMelt: trans.tMelt, Imelt: trans.Imelt, Jmelt: trans.Jmelt, dIdt: trans.dIdt,
       I: I, Ionset: Ionset, Amm2: Amm2, s10: s10, R0: R0, Jss: est.Jss, clipPct: clipPct,
       Tonset: Tonset, flashWin: flashWin, willLOC: willLOC, TmC: TmC
     };
-  }, [metal, geo, thick, width, diam, gauge, jdot, hEff, vOff, mp, dum, Imax, tubeID, tubeWall]);
+  }, [metal, geo, thick, width, diam, gauge, jdot, hEff, vOff, mp, dum, Imax, tubeID, tubeWall, gasAtm, chamberP, hInfo]);
 
   /* h at flash onset temperature (for display) */
   var hAtOnset = useMemo(function () {
@@ -1050,13 +1083,13 @@ export default function ProcessWindowV5(props) {
     CHART_METALS.forEach(function (m) {
       var est = estimateJloc(m, geo, thick, width, dum, gauge, jdot, hEff, tubeID, tubeWall);
       var pts = buildEJ(m, est.Jloc, 100);
-      var tr = transientEpeak(DB[m], geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall);
+      var tr = transientEpeak(DB[m], geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall, gasAtm, chamberP, hInfo.Dch, emissOvr >= 0 ? emissOvr : getEmissivity(m));
       var mEf = flashThreshold(DB[m].lam, gauge);
       var mJflash = findJonset(DB[m], est.Jloc, mEf);
       c[m] = { pts: pts, Jloc: est.Jloc, Emax: DB[m].rhoM * est.Jloc * 1e6 / 100, Epeak: tr.Epeak, Jmelt: tr.Jmelt, Ef: mEf, Jflash: mJflash };
     });
     return c;
-  }, [geo, thick, width, diam, gauge, jdot, hEff, dum, Imax, tubeID, tubeWall]);
+  }, [geo, thick, width, diam, gauge, jdot, hEff, dum, Imax, tubeID, tubeWall, gasAtm, chamberP, hInfo, emissOvr]);
 
   var ejData = useMemo(function () {
     var map = {};
@@ -1731,7 +1764,7 @@ export default function ProcessWindowV5(props) {
                     var est = estimateJloc(k, geo, thick, width, dum, gauge, jdot, hEff, tubeID, tubeWall);
                     var E = m.rhoM * est.Jloc * 1e6 / 100;
                     var clip = est.cool.qTot > 0 ? est.cool.qClip / est.cool.qTot * 100 : 0;
-                    var tr_res = transientEpeak(m, geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall);
+                    var tr_res = transientEpeak(m, geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall, gasAtm, chamberP, hInfo.Dch, emissOvr >= 0 ? emissOvr : getEmissivity(k));
                     var tr_E = tr_res.Epeak;
                     var ef = flashThreshold(m.lam, gauge);
                     var Jfl = findJonset(m, est.Jloc, ef);
