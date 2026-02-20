@@ -1304,8 +1304,13 @@ export default function ProcessWindowV5(props) {
     }}>
       <div style={{
         textAlign: "center", marginBottom: "0.5rem", paddingBottom: "0.3rem",
-        borderBottom: "1px solid #cbd5e1"
+        borderBottom: "1px solid #cbd5e1", position: "relative"
       }}>
+        {/* MIT Logo — top left */}
+        <img src="/mit_logo.svg" alt="MIT" style={{
+          position: "absolute", left: 0, top: 4,
+          height: 36, opacity: 0.85
+        }} />
         <div style={{
           fontSize: "0.56rem", fontFamily: FONT_M, color: "#64748b",
           letterSpacing: "0.05em", marginBottom: 4, padding: "3px 0",
