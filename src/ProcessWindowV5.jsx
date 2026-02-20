@@ -869,7 +869,7 @@ function transientEpeak(mp, geo, t_um, w_mm, d_um, L_mm, Imax, jdot, tubeID_mm, 
   /* Pre-build h(T) lookup table at 25K intervals for fast interpolation */
   var hasCooling = gasKey && P_torr != null;
   var hStep = 25;
-  var hTable = [];   /* array of h_total values at T = 300, 325, 350, ... */
+  var hTable = [];
   if (hasCooling) {
     for (var Tt = 300; Tt <= mp.Tm + hStep; Tt += hStep) {
       hTable.push(computeHtotal(gasKey, P_torr, Math.max(Tt, 301), 300, D_char, emissivity).h_total);
@@ -882,33 +882,104 @@ function transientEpeak(mp, geo, t_um, w_mm, d_um, L_mm, Imax, jdot, tubeID_mm, 
     return hTable[i0] + f * (hTable[i0 + 1] - hTable[i0]);
   }
 
+  /* Three-phase model constants */
+  var PLATEAU_SLOPE = 0.10;   /* ρ increases ~10% from onset to LOC */
+  var F_THERMAL = 0.35;   /* 35% of post-onset energy → lattice heating */
+  /*                            65% → defect nucleation / e-h recombination */
+
+  /* Flash onset threshold */
+  var Ef = flashThreshold(mp.lam, L_mm);
+
+  /* Defect percolation LOC energy: energy-equivalent of heating from T_onset to T_m.
+     In the old model this was thermal; now it's the defect budget that causes LOC. */
   var T = 300; var Epk = 0; var dt = 0.002;
-  var tMelt = 0; var Imelt = 0; var Jmelt = 0;
+  var tLOC = 0; var Iloc = 0; var Jloc_t = 0;
+  var tOnset = 0; var T_onset = 0;
+
+  /* Phase-2 state: tracked once onset is detected */
+  var onsetReached = false;
+  var rho_onset = 0;
+  var J_onset = 0;
+  var defectEnergy = 0;                         /* accumulated defect energy density J/m³ */
+  var D_crit = 0;                               /* percolation threshold, set at onset */
+
   for (var step = 0; step < 10000; step++) {
     var t = step * dt;
     var I = Math.min(dIdt * t, Imax);
     var J = I / A_m2;
-    var frac = Math.min(1, Math.max(0, (T - 300) / (mp.Tm - 300)));
-    var rho = mp.rho0 + (mp.rhoM - mp.rho0) * frac;
-    var E = rho * J / 100;
-    if (E > Epk) Epk = E;
-    /* Joule heating */
-    var qJoule = rho * J * J / (mp.rho_m * mp.Cp);
-    /* Dynamic cooling: h(T)·SA/V·ΔT + clip conduction */
-    var qCool = 0;
-    if (hasCooling && T > 301) {
-      var hT = hLookup(T);
-      qCool += hT * saV * (T - 300) / (mp.rho_m * mp.Cp);
-      var mFin = Math.sqrt(hT * g.P / (mp.k_th * g.A));
-      var mL2 = Math.min(mFin * Lm / 2, 20);
-      qCool += 2 * mp.k_th * mFin * Math.tanh(mL2) / Lm / (mp.rho_m * mp.Cp);
+    var rho, E;
+
+    if (!onsetReached) {
+      /* ── Phase 1: Bloch-Grüneisen ── */
+      var frac = Math.min(1, Math.max(0, (T - 300) / (mp.Tm - 300)));
+      rho = mp.rho0 + (mp.rhoM - mp.rho0) * frac;
+      E = rho * J / 100;
+      if (E > Epk) Epk = E;
+
+      /* Joule heating — full BG, equilibrium */
+      var qJoule = rho * J * J / (mp.rho_m * mp.Cp);
+      var qCool = 0;
+      if (hasCooling && T > 301) {
+        var hT = hLookup(T);
+        qCool += hT * saV * (T - 300) / (mp.rho_m * mp.Cp);
+        var mFin = Math.sqrt(hT * g.P / (mp.k_th * g.A));
+        var mL2 = Math.min(mFin * Lm / 2, 20);
+        qCool += 2 * mp.k_th * mFin * Math.tanh(mL2) / Lm / (mp.rho_m * mp.Cp);
+      }
+      T += (qJoule - qCool) * dt;
+      if (T < 300) T = 300;
+
+      /* Detect flash onset */
+      if (E >= Ef) {
+        onsetReached = true;
+        rho_onset = rho;
+        J_onset = J;
+        T_onset = T;
+        tOnset = t;
+        /* Defect percolation threshold: energy-equivalent of BG path from T_onset to T_m */
+        D_crit = mp.rho_m * mp.Cp * (mp.Tm - T);
+      }
+    } else {
+      /* ── Phase 2: Post-onset plateau + defect accumulation ── */
+      /* Resistivity plateaus: R goes "sideways" (calibrated from Ti runs 12 & 14) */
+      var J_ratio = J_onset > 0 ? (J - J_onset) / J_onset : 0;
+      rho = rho_onset * (1 + PLATEAU_SLOPE * Math.max(0, J_ratio));
+      E = rho * J / 100;
+      if (E > Epk) Epk = E;
+
+      var qJoule2 = rho * J * J;   /* W/m³ total Joule power */
+      /* Only F_THERMAL fraction heats lattice; rest nucleates defects */
+      var qThermal = F_THERMAL * qJoule2 / (mp.rho_m * mp.Cp);
+      var qCool2 = 0;
+      if (hasCooling && T > 301) {
+        var hT2 = hLookup(T);
+        qCool2 += hT2 * saV * (T - 300) / (mp.rho_m * mp.Cp);
+        var mFin2 = Math.sqrt(hT2 * g.P / (mp.k_th * g.A));
+        var mL2b = Math.min(mFin2 * Lm / 2, 20);
+        qCool2 += 2 * mp.k_th * mFin2 * Math.tanh(mL2b) / Lm / (mp.rho_m * mp.Cp);
+      }
+      T += (qThermal - qCool2) * dt;
+      if (T < 300) T = 300;
+
+      /* Accumulate defect energy — drives LOC by percolation */
+      defectEnergy += (1 - F_THERMAL) * qJoule2 * dt;
+
+      /* LOC criterion: defect percolation, NOT melting */
+      if (defectEnergy >= D_crit) {
+        tLOC = t; Iloc = I; Jloc_t = J / 1e6;
+        break;
+      }
     }
-    T += (qJoule - qCool) * dt;
-    if (T < 300) T = 300;
-    if (T >= mp.Tm) { tMelt = t; Imelt = I; Jmelt = J / 1e6; break; }
+
+    /* Safety fallbacks */
+    if (T >= mp.Tm) { tLOC = t; Iloc = I; Jloc_t = J / 1e6; break; }
     if (t > 20) break;
   }
-  return { Epeak: Epk, tMelt: tMelt, Imelt: Imelt, Jmelt: Jmelt, dIdt: dIdt };
+  return {
+    Epeak: Epk, tLOC: tLOC, Iloc: Iloc, Jloc_t: Jloc_t, dIdt: dIdt,
+    tOnset: tOnset, Tonset: T_onset > 0 ? T_onset - 273 : 0,
+    T_LOC: T - 273    /* lattice temperature at LOC — lower than T_m */
+  };
 }
 
 
@@ -1125,7 +1196,8 @@ export default function ProcessWindowV5(props) {
     var trans = transientEpeak(mp, geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall, gasAtm, chamberP, hInfo.Dch, hInfo.eps);
     return {
       Jloc: Jloc, Emax: Emax, Ef: Ef, Jflash: Jflash, tr: tr, NR: NR, tau: est.cool.tau,
-      Epeak: trans.Epeak, tMelt: trans.tMelt, Imelt: trans.Imelt, Jmelt: trans.Jmelt, dIdt: trans.dIdt,
+      Epeak: trans.Epeak, tLOC: trans.tLOC, Iloc: trans.Iloc, Jloc_t: trans.Jloc_t, dIdt: trans.dIdt,
+      T_LOC: trans.T_LOC, tOnset_t: trans.tOnset, Tonset_t: trans.Tonset,
       I: I, Ionset: Ionset, Amm2: Amm2, s10: s10, R0: R0, Jss: est.Jss, clipPct: clipPct,
       Tonset: Tonset, flashWin: flashWin, willLOC: willLOC, TmC: TmC
     };
@@ -1147,7 +1219,7 @@ export default function ProcessWindowV5(props) {
       var tr = transientEpeak(DB[m], geo, thick, width, dum, gauge, Imax, jdot, tubeID, tubeWall, gasAtm, chamberP, hInfo.Dch, emissOvr >= 0 ? emissOvr : getEmissivity(m));
       var mEf = flashThreshold(DB[m].lam, gauge);
       var mJflash = findJonset(DB[m], est.Jloc, mEf);
-      c[m] = { pts: pts, Jloc: est.Jloc, Emax: DB[m].rhoM * est.Jloc * 1e6 / 100, Epeak: tr.Epeak, Jmelt: tr.Jmelt, Ef: mEf, Jflash: mJflash };
+      c[m] = { pts: pts, Jloc: est.Jloc, Emax: DB[m].rhoM * est.Jloc * 1e6 / 100, Epeak: tr.Epeak, Jloc_t: tr.Jloc_t, Ef: mEf, Jflash: mJflash };
     });
     return c;
   }, [geo, thick, width, diam, gauge, jdot, hEff, dum, Imax, tubeID, tubeWall, gasAtm, chamberP, hInfo, emissOvr]);
@@ -1249,7 +1321,7 @@ export default function ProcessWindowV5(props) {
           Flash Process Parameters for Metals
         </h1>
         <p style={{ fontFamily: FONT_M, fontSize: "0.58rem", color: "#64748b", margin: "1px 0 0" }}>
-          fin+clip thermal model | dynamic E(J) | {ALL_METALS.length} metals + {ALL_ALLOYS.length} alloys | Voltivity DFT Handbook v12
+          fin+clip thermal model | 3-phase ρ (BG→defect LOC) | {ALL_METALS.length} metals + {ALL_ALLOYS.length} alloys | Voltivity DFT Handbook v12
         </p>
         {props.onOpenGuide ? (
           <button onClick={props.onOpenGuide} style={{
@@ -1549,14 +1621,16 @@ export default function ProcessWindowV5(props) {
             <InfoRow label="Flash window" val={uc.flashWin > 0 ? uc.flashWin.toFixed(1) : "--"} unit={uc.flashWin > 0 ? "%" : ""} />
             <InfoRow label="E_flash (threshold)" val={uc.Ef.toFixed(3)} unit="V/cm" />
             <InfoRow label="E_peak (transient)" val={uc.Epeak.toFixed(3)} unit="V/cm" hl />
-            <InfoRow label="J at melt" val={uc.Jmelt.toFixed(0)} unit="A/mm2" dim />
-            <InfoRow label="I at melt" val={uc.Imelt.toFixed(1)} unit="A" dim />
-            <InfoRow label="t to melt" val={(uc.tMelt * 1000).toFixed(0)} unit="ms" dim />
+            <InfoRow label="J at LOC" val={uc.Jloc_t.toFixed(0)} unit="A/mm2" />
+            <InfoRow label="I at LOC" val={uc.Iloc.toFixed(1)} unit="A" />
+            <InfoRow label="T at LOC (lattice)" val={uc.T_LOC > 0 ? uc.T_LOC.toFixed(0) : "--"} unit={uc.T_LOC > 0 ? "°C" : ""} />
+            <InfoRow label="Time to flash onset" val={(uc.tOnset_t * 1000).toFixed(0)} unit="ms" dim />
+            <InfoRow label="Time to LOC" val={(uc.tLOC * 1000).toFixed(0)} unit="ms" dim />
             <InfoRow label="J_ss (steady)" val={uc.Jss.toFixed(0)} unit="A/mm2" dim />
             <InfoRow label="Clip share" val={uc.clipPct.toFixed(0)} unit="%" dim />
             <InfoRow label="(N_R)" val={uc.NR.toFixed(3)} />
             <InfoRow label="tau_cool" val={uc.tau.toFixed(1)} unit="s" dim />
-            <InfoRow label="I at LOC" val={uc.I.toFixed(1)} unit="A" />
+            <InfoRow label="I at thermal LOC" val={uc.I.toFixed(1)} unit="A" dim />
             <InfoRow label="Tm" val={uc.TmC.toFixed(0)} unit="°C" dim />
             <InfoRow label="Voff/V @10%J" val={(uc.s10 * 100).toFixed(1)} unit="%"
               warn={uc.s10 > 0.15} />
