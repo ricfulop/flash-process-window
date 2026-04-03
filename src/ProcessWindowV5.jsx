@@ -1064,6 +1064,7 @@ function Sl(props) {
   function commitEdit() {
     var n = parseFloat(tmpVal);
     if (!isNaN(n)) {
+      if (props.fromDisplay) n = props.fromDisplay(n);
       if (props.min != null) n = Math.max(props.min, n);
       if (props.max != null) n = Math.min(props.max, n);
       props.set(n);
@@ -1162,8 +1163,21 @@ export default function ProcessWindowV5(props) {
   var _gas = useState("forming"); var gasAtm = _gas[0]; var setGasAtm = _gas[1];
   var _pr = useState(760); var chamberP = _pr[0]; var setChamberP = _pr[1];
   var _em = useState(-1); var emissOvr = _em[0]; var setEmissOvr = _em[1]; /* -1 = auto */
+  /* Unit system toggle */
+  var _imp = useState(false); var imperial = _imp[0]; var setImperial = _imp[1];
 
   var mp = DB[metal];
+
+  /* Unit conversions: internal state is always metric */
+  var UM_TO_THOU = 1 / 25.4;       /* µm → thou (mils) */
+  var THOU_TO_UM = 25.4;            /* thou → µm */
+  var MM_TO_IN = 1 / 25.4;          /* mm → inches */
+  var IN_TO_MM = 25.4;              /* inches → mm */
+  var MM2_TO_IN2 = 1 / 645.16;      /* mm² → in² */
+  function fmtThou(v) { return (v * UM_TO_THOU).toFixed(1); }
+  function fmtIn(v) { return (v * MM_TO_IN).toFixed(3); }
+  function parseThou(v) { return v * THOU_TO_UM; }
+  function parseIn(v) { return v * IN_TO_MM; }
   var dum = geo === "wire" ? diam : 0;
 
   /* Compute temperature-averaged h from RT→T_m (50K steps) */
@@ -1473,40 +1487,83 @@ export default function ProcessWindowV5(props) {
         {/* LEFT */}
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
-            <div style={{ display: "flex", gap: 2, marginBottom: 3 }}>
+            <div style={{ display: "flex", gap: 2, marginBottom: 3, alignItems: "center" }}>
               <Chip active={geo === "foil"} color="#e94560"
                 onClick={function () { setGeo("foil"); }}>Foil</Chip>
               <Chip active={geo === "wire"} color="#e94560"
                 onClick={function () { setGeo("wire"); }}>Wire</Chip>
               <Chip active={geo === "tube"} color="#e94560"
                 onClick={function () { setGeo("tube"); }}>Tube</Chip>
+              <span style={{ flex: 1 }} />
+              <Chip active={!imperial} color="#64748b"
+                onClick={function () { setImperial(false); }}>Metric</Chip>
+              <Chip active={imperial} color="#64748b"
+                onClick={function () { setImperial(true); }}>Imperial</Chip>
             </div>
             {geo === "foil" ? (
               <div>
                 <Sl label="Thickness" value={thick} set={setThick}
-                  min={5} max={1000} step={5} unit="µm" />
+                  min={5} max={1000} step={5}
+                  unit={imperial ? "thou" : "µm"}
+                  fmt={imperial ? fmtThou : undefined}
+                  fromDisplay={imperial ? parseThou : undefined} />
                 <Sl label="Width" value={width} set={setWidth}
-                  min={0.25} max={25} step={0.25} unit="mm"
-                  fmt={function (v) { return v.toFixed(2); }} />
+                  min={0.25} max={25} step={0.25}
+                  unit={imperial ? "in" : "mm"}
+                  fmt={imperial ? fmtIn : function (v) { return v.toFixed(2); }}
+                  fromDisplay={imperial ? parseIn : undefined} />
               </div>
             ) : geo === "wire" ? (
               <Sl label="Diameter" value={diam} set={setDiam}
-                min={10} max={5000} step={10} unit="µm" />
+                min={10} max={5000} step={10}
+                unit={imperial ? "thou" : "µm"}
+                fmt={imperial ? fmtThou : undefined}
+                fromDisplay={imperial ? parseThou : undefined} />
             ) : (
               <div>
                 <Sl label="Inner diameter (ID)" value={tubeID} set={setTubeID}
-                  min={0.5} max={50} step={0.5} unit="mm"
-                  fmt={function (v) { return v.toFixed(1); }} />
+                  min={0.5} max={50} step={0.5}
+                  unit={imperial ? "in" : "mm"}
+                  fmt={imperial ? fmtIn : function (v) { return v.toFixed(1); }}
+                  fromDisplay={imperial ? parseIn : undefined} />
                 <Sl label="Wall thickness" value={tubeWall} set={setTubeWall}
-                  min={10} max={2000} step={10} unit="µm" />
+                  min={10} max={2000} step={10}
+                  unit={imperial ? "thou" : "µm"}
+                  fmt={imperial ? fmtThou : undefined}
+                  fromDisplay={imperial ? parseThou : undefined} />
               </div>
             )}
             <Sl label="Gauge length L" value={gauge} set={setGauge}
-              min={2} max={400} step={1} unit="mm" color="#f59e0b" />
+              min={2} max={400} step={1}
+              unit={imperial ? "in" : "mm"} color="#f59e0b"
+              fmt={imperial ? fmtIn : undefined}
+              fromDisplay={imperial ? parseIn : undefined} />
+            {(function () {
+              var cs = geoAP(geo, thick, width, diam, tubeID, tubeWall);
+              var Amm2 = cs.A * 1e6;
+              var Pmm = cs.P * 1e3;
+              return (
+                <div style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "baseline",
+                  marginTop: 2, padding: "2px 0", borderTop: "1px solid #e2e8f0",
+                  fontSize: "0.56rem", fontFamily: FONT_M
+                }}>
+                  <span style={{ color: "#64748b" }}>Cross-section A</span>
+                  <span style={{ fontWeight: 700, color: "#e94560" }}>
+                    {imperial
+                      ? (Amm2 * MM2_TO_IN2).toFixed(5) + " "
+                      : Amm2.toFixed(3) + " "}
+                    <span style={{ fontSize: "0.46rem", color: "#94a3b8", fontWeight: 400 }}>
+                      {imperial ? "in²" : "mm²"}
+                    </span>
+                  </span>
+                </div>
+              );
+            })()}
           </div>
           <div style={{ background: "#ffffff", borderRadius: 6, padding: "6px 8px", border: "1px solid #e2e8f0" }}>
             <Sl label="Ramp rate" value={jdot} set={setJdot}
-              min={10} max={50000} step={10} unit="A/mm²/min" color="#3b82f6" />
+              min={1} max={50000} step={1} unit="A/mm²/min" color="#3b82f6" />
             <Sl label="I_max (supply)" value={Imax} set={setImax}
               min={10} max={500} step={5} unit="A" color="#ef4444" />
             <Sl label="V offset" value={vOff} set={setVOff}
@@ -1608,7 +1665,9 @@ export default function ProcessWindowV5(props) {
               var tLOC_s = Iloc > 0 ? Iloc / dIdt_As : 0;
               return (
                 <div style={{ fontSize: "0.56rem", fontFamily: FONT_M, lineHeight: 1.7 }}>
-                  <InfoRow label="Cross-section A" val={Amm2.toFixed(3)} unit="mm²" />
+                  <InfoRow label="Cross-section A"
+                    val={imperial ? (Amm2 * MM2_TO_IN2).toFixed(5) : Amm2.toFixed(3)}
+                    unit={imperial ? "in²" : "mm²"} />
                   <InfoRow label="Current ramp dI/dt" val={dIdt_Amin.toFixed(1)} unit="A/min" hl />
                   <InfoRow label="Current ramp dI/dt" val={dIdt_As.toFixed(2)} unit="A/s" />
                   <InfoRow label="I at flash onset" val={Ionset.toFixed(1)} unit="A" />
@@ -2106,7 +2165,7 @@ export default function ProcessWindowV5(props) {
         textAlign: "center", marginTop: "0.3rem", fontSize: "0.5rem",
         fontFamily: FONT_M, color: "#64748b"
       }}>
-        v8 -- {ALL_METALS.length} metals (Voltivity DFT Handbook v12) | fin+clip model | t 5-1000um, w 0.25-25mm, L 2-200mm, jdot 50-50k, h 2-200
+        v9 -- {ALL_METALS.length} metals (Voltivity DFT Handbook v12) | fin+clip+f_diff model | metric/imperial | t 5-1000um, w 0.25-25mm, L 2-400mm, jdot 1-50k
       </div>
     </div>
   );
