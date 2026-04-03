@@ -903,11 +903,20 @@ function transientEpeak(mp, geo, t_um, w_mm, d_um, L_mm, Imax, jdot, tubeID_mm, 
   var defectEnergy = 0;                         /* accumulated defect energy density J/m³ */
   var D_crit = 0;                               /* percolation threshold, set at onset */
 
+  /* Thermal diffusivity for diffusion-limited axial conduction ramp (Vc supplementary Eq. 2).
+     Prevents clip conduction from exceeding its steady-state value before the thermal
+     diffusion front has reached the wire midpoint. */
+  var alpha_th = mp.k_th / (mp.rho_m * mp.Cp);
+
   for (var step = 0; step < 10000; step++) {
     var t = step * dt;
     var I = Math.min(dIdt * t, Imax);
     var J = I / A_m2;
     var rho, E;
+
+    /* f_diff: fraction of steady-state axial conduction active at time t.
+       Ramps from 0 → 1 as the thermal front propagates to the midpoint. */
+    var f_diff = t > 0 ? Math.min(1, 2 * Math.sqrt(alpha_th * t) / Lm) : 0;
 
     if (!onsetReached) {
       /* ── Phase 1: Bloch-Grüneisen ── */
@@ -924,7 +933,7 @@ function transientEpeak(mp, geo, t_um, w_mm, d_um, L_mm, Imax, jdot, tubeID_mm, 
         qCool += hT * saV * (T - 300) / (mp.rho_m * mp.Cp);
         var mFin = Math.sqrt(hT * g.P / (mp.k_th * g.A));
         var mL2 = Math.min(mFin * Lm / 2, 20);
-        qCool += 2 * mp.k_th * mFin * Math.tanh(mL2) / Lm / (mp.rho_m * mp.Cp);
+        qCool += f_diff * 2 * mp.k_th * mFin * Math.tanh(mL2) / Lm / (mp.rho_m * mp.Cp);
       }
       T += (qJoule - qCool) * dt;
       if (T < 300) T = 300;
@@ -956,7 +965,7 @@ function transientEpeak(mp, geo, t_um, w_mm, d_um, L_mm, Imax, jdot, tubeID_mm, 
         qCool2 += hT2 * saV * (T - 300) / (mp.rho_m * mp.Cp);
         var mFin2 = Math.sqrt(hT2 * g.P / (mp.k_th * g.A));
         var mL2b = Math.min(mFin2 * Lm / 2, 20);
-        qCool2 += 2 * mp.k_th * mFin2 * Math.tanh(mL2b) / Lm / (mp.rho_m * mp.Cp);
+        qCool2 += f_diff * 2 * mp.k_th * mFin2 * Math.tanh(mL2b) / Lm / (mp.rho_m * mp.Cp);
       }
       T += (qThermal - qCool2) * dt;
       if (T < 300) T = 300;
